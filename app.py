@@ -7,7 +7,7 @@ import random
 st.set_page_config(page_title="Automated Data Insights Pro", layout="wide")
 
 st.title("📊 Automated Data Insights")
-st.markdown("Analítica descriptiva automática con interpretación guiada para toma de decisiones.")
+st.markdown("Analítica descriptiva automática con visualización optimizada.")
 
 uploaded_file = st.file_uploader("Elige un fichero (CSV o Excel)", type=['csv', 'xlsx'])
 
@@ -74,41 +74,38 @@ if uploaded_file is not None:
                 # Mostrar tabla formateada
                 st.dataframe(desc_df.style.format("{:,.2f}"))
 
-                # --- GUÍA DE INTERPRETACIÓN DESARROLLADA CON EJEMPLOS ---
-                st.markdown("### 📘 Guía de Interpretación y Casos Reales")
-                
-                col_exp1, col_exp2 = st.columns(2)
-                
-                with col_exp1:
-                    st.markdown("""
-                    #### 1. Centralidad: ¿Dónde está el "foco"?
-                    * **Media:** Es el promedio. Si la media de "Días de Cobro" es 30, ese es tu desempeño estándar.
-                    * **50% (Mediana):** El centro real. Si tienes 10 facturas de 1€ y una de 1.000.000€, la *Media* será altísima, pero la *Mediana* te dirá que la mayoría de tus facturas son pequeñas.
+                # --- GUÍA DE INTERPRETACIÓN DENTRO DE UN DESPLEGABLE ---
+                with st.expander("📘 Haz clic aquí para ver la Guía de Interpretación y Casos Reales"):
+                    col_exp1, col_exp2 = st.columns(2)
                     
-                    
-                    #### 2. Dispersión: ¿Qué tan fiable es el dato?
-                    * **Desv. Estándar:** Mide la estabilidad. 
-                        * *Ejemplo:* Si fabricas piezas de 10cm con desv. de 0.01cm, tu proceso es **preciso**. Si la desv. es de 2cm, tu proceso es **caótico** y defectuoso.
-                    * **Varianza:** Indica la cantidad de "sorpresas" o incertidumbre. A mayor varianza, más difícil es predecir resultados futuros.
-                    
-                    """)
+                    with col_exp1:
+                        st.markdown("""
+                        #### 1. Centralidad: ¿Dónde está el "foco"?
+                        * **Media:** Es el promedio aritmético. Indica el "centro" de tus datos.
+                        * **50% (Mediana):** Es el valor central. El 50% de los datos son menores y el 50% son mayores. A diferencia de la media, no le afectan los valores extremos (outliers).
+                        
+                        
+                        #### 2. Dispersión: ¿Qué tan fiable es el dato?
+                        * **Desv. Estándar:** Indica cuánto se alejan los datos de la media. Si es alta, los datos están muy dispersos; si es baja, están agrupados cerca del promedio.
+                        * **Varianza:** Al igual que la desviación, mide la dispersión (es el cuadrado de la desviación). Útil para cálculos estadísticos avanzados.
+                        
+                        """)
 
-                with col_exp2:
-                    st.markdown("""
-                    #### 3. Rango y Posicionamiento (Cuartiles)
-                    * **Mínimo y Máximo:** Indican los límites. Sirven para detectar errores (ej. una edad de 200 años) o récords históricos.
-                    * **25% (Q1 - Umbral Inferior):** *Ejemplo:* "El 25% de mis ventas son menores a 50€". Identifica tu segmento de bajo ticket.
-                    * **75% (Q3 - Umbral Superior):** *Ejemplo:* "El 75% de mis envíos tardan menos de 3 días". El 25% restante son los que necesitan atención urgente por lentos.
-                    
-                    
-                    #### 4. Ejemplo de Diagnóstico Rápido
-                    Si analizas el **"Tiempo de Respuesta a Clientes"**:
-                    - **Media:** 12 horas.
-                    - **Mediana (50%):** 2 horas.
-                    - **Máximo:** 120 horas.
-                    
-                    **Insight:** Tu equipo suele responder rápido (2h), pero hay algunos casos olvidados (120h) que están arruinando tu promedio y tu reputación. ¡Ataca los valores máximos!
-                    """)
+                    with col_exp2:
+                        st.markdown("""
+                        #### 3. Rango y Posicionamiento (Cuartiles)
+                        * **Mínimo y Máximo:** Los valores extremos detectados en la columna.
+                        * **25% (Primer Cuartil):** El 25% de tus datos están por debajo de este valor. Ayuda a entender la parte baja de la distribución.
+                        * **75% (Tercer Cuartil):** El 75% de tus datos están por debajo de este valor. Ayuda a entender la parte alta de la distribución.
+                        
+                        
+                        #### 4. Ejemplo de Diagnóstico Rápido
+                        Si analizas **"Salarios"** y ves:
+                        - **Media:** 8.000€
+                        - **Mediana (50%):** 2.500€
+                        
+                        **Insight:** La mayoría gana cerca de 2.500€, pero hay directivos ganando muchísimo que hacen que la media parezca mucho más alta. ¡No te fíes de la media en este caso!
+                        """)
             else:
                 st.info("Selecciona al menos una variable en el buscador de arriba.")
         else:
@@ -142,34 +139,33 @@ if uploaded_file is not None:
                     max_y = df_counts[feat_y].max()
                     fig.update_yaxes(range=[0, max_y * 1.2]) 
                     fig.update_traces(textposition='outside')
-                    exp = "**Interpretación de Barras:** Compara el peso de cada categoría. El porcentaje (%) indica la relevancia sobre el total acumulado."
+                    exp = "**Interpretación:** Compara el peso de cada categoría. El porcentaje (%) indica la relevancia sobre el total."
 
                 elif chart_type == "Dispersión":
                     fig = px.scatter(df, x=feat_x, y=feat_y, template="plotly_dark")
-                    exp = "**Interpretación de Dispersión:** Busca nubes de puntos. Si hay una línea clara, una variable influye directamente en la otra."
+                    exp = "**Interpretación:** Busca nubes de puntos. Si hay una línea clara, una variable influye en la otra."
 
                 elif chart_type == "Líneas":
                     fig = px.line(df, x=feat_x, y=feat_y, template="plotly_dark")
-                    exp = "**Interpretación de Líneas:** Ideal para ver evolución. Los picos y valles muestran momentos de éxito o crisis."
+                    exp = "**Interpretación:** Ideal para ver la evolución de una métrica en el tiempo."
 
                 elif chart_type == "Boxplot":
                     fig = px.box(df, x=feat_x, y=feat_y, template="plotly_dark")
-                    exp = "**Interpretación de Boxplot:** Visualiza la tabla de descriptivos. La caja es el 50% de tus datos. Los puntos fuera son tus excepciones."
-                    
+                    exp = "**Interpretación:** Visualiza la tabla de descriptivos. Los puntos aislados son outliers."
 
                 elif chart_type == "Violín":
                     fig = px.violin(df, x=feat_x, y=feat_y, box=True, points="all", template="plotly_dark")
-                    exp = "**Interpretación de Violín:** Donde el violín es más ancho, hay más concentración de casos. Es la 'huella dactilar' de tus datos."
+                    exp = "**Interpretación:** Donde el violín es más ancho, hay más concentración de casos."
 
                 elif chart_type == "Histograma":
                     fig = px.histogram(df, x=feat_y, template="plotly_dark", text_auto=True)
                     fig.update_layout(bargap=0.1)
                     fig.update_traces(textposition='outside')
-                    exp = "**Interpretación de Histograma:** Muestra cuántos registros caen en cada rango. ¿Tienes una distribución equilibrada o concentrada en los extremos?"
+                    exp = "**Interpretación:** ¿Tienes una distribución equilibrada o concentrada en los extremos?"
 
                 else: # Histograma + Densidad
                     fig = px.histogram(df, x=feat_y, marginal="rug", histnorm='probability density', template="plotly_dark")
-                    exp = "**Interpretación de Densidad:** La curva suavizada elimina el ruido visual para mostrar la probabilidad real de que ocurra un valor."
+                    exp = "**Interpretación:** La curva suavizada muestra la probabilidad real de que ocurra un valor."
 
                 st.plotly_chart(fig, use_container_width=True)
                 st.info(exp)
@@ -177,4 +173,4 @@ if uploaded_file is not None:
     except Exception as e:
         st.error(f"Error al procesar los datos: {e}")
 else:
-    st.info("👋 Sube un archivo CSV o Excel para comenzar el análisis profesional.")
+    st.info("👋 Sube un archivo CSV o Excel para comenzar.")
