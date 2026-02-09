@@ -11,7 +11,7 @@ try:
     genai.configure(api_key=API_KEY)
     
     # Usamos gemini-1.5-flash que es el estándar actual más rápido
-    model = genai.GenerativeModel(model_name='gemini-1.5-flash') 
+    model = genai.GenerativeModel(model_name='gemini-2.0-flash') 
     
 except Exception as e:
     st.error(f"⚠️ Error en la configuración de la IA: {e}")
@@ -130,5 +130,6 @@ if uploaded_file is not None:
         st.error(f"Ocurrió un error al procesar el archivo: {e}")
 else:
     st.info("👋 ¡Bienvenido! Por favor, sube un archivo CSV o Excel para comenzar el análisis.")
+
 
 
