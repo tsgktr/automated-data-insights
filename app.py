@@ -1,135 +1,126 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import google.generativeai as genai
+from google import genai
 import random
-
-# --- CONFIGURACIÓN DE GEMINI (Segura a través de Secrets) ---
-# --- CONFIGURACIÓN DE GEMINI ---
-try:
-    API_KEY = st.secrets["GEMINI_KEY"]
-    genai.configure(api_key=API_KEY)
-    
-    # Usamos gemini-1.5-flash que es el estándar actual más rápido
-    model = genai.GenerativeModel(model_name='gemini-2.0-flash') 
-    
-except Exception as e:
-    st.error(f"⚠️ Error en la configuración de la IA: {e}")
+import time
 
 # --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(page_title="Automated Data Insights + IA", layout="wide")
 
+# --- INICIALIZACIÓN DEL CLIENTE GEMINI ---
+# Intentamos conectar con la versión v1 (estable para planes gratuitos)
+try:
+    client = genai.Client(
+        api_key=st.secrets["GEMINI_KEY"],
+        http_options={'api_version': 'v1'}
+    )
+    # Lista de modelos por orden de preferencia para el plan gratuito
+    # Si el primero falla por cuota, podrías cambiar manualmente al segundo
+    MODEL_ID = "gemini-1.5-flash" 
+except Exception as e:
+    st.error(f"⚠️ Error al configurar la API Key. Verifica los Secrets en Streamlit Cloud.")
+
 st.title("📊 Automated Data Insights + ✨ IA")
-st.markdown("Analítica descriptiva automática potenciada por Inteligencia Artificial.")
+st.markdown("Analítica descriptiva automática con soporte de Inteligencia Artificial (Plan Gratuito).")
 
 # --- CARGADOR DE ARCHIVOS ---
-uploaded_file = st.file_uploader("Elige un fichero (CSV o Excel)", type=['csv', 'xlsx'])
+uploaded_file = st.file_uploader("Sube tu archivo CSV o Excel", type=['csv', 'xlsx'])
 
 if uploaded_file is not None:
     try:
-        # Lectura de datos
+        # Carga inteligente
         if uploaded_file.name.endswith('.csv'):
             df = pd.read_csv(uploaded_file)
         else:
             df = pd.read_excel(uploaded_file)
         
-        st.success("¡Archivo cargado con éxito!")
+        st.success("✅ Datos cargados correctamente")
 
-        # --- SECCIÓN 1: VISTA PREVIA (Solo 5 registros) ---
-        st.subheader("👀 Vista previa de los datos (Top 5)")
-        st.dataframe(df.head(5))
+        # --- SECCIÓN 1: VISTA PREVIA ---
+        with st.expander("👀 Ver vista previa de los datos"):
+            st.dataframe(df.head(5))
 
-        # --- SECCIÓN 2: INFORMACIÓN DE COLUMNAS (Lógica de valores únicos) ---
-        st.subheader("🔍 Información de Columnas")
-        
+        # --- SECCIÓN 2: INFORMACIÓN DE COLUMNAS ---
+        st.subheader("🔍 Estructura de los Datos")
         info_data = []
         for col in df.columns:
-            dtype = str(df[col].dtype)
-            nulos = df[col].isnull().sum()
-            unique_values = df[col].dropna().unique().tolist()
-            num_unique = len(unique_values)
+            unique_vals = df[col].dropna().unique().tolist()
+            num_unique = len(unique_vals)
             
-            # Lógica: si son < 5 mostramos todos, si no, 5 aleatorios
+            # Lógica solicitada: <5 mostrar todos, si no 5 aleatorios
             if num_unique <= 5:
-                ejemplos = ", ".join(map(str, unique_values))
+                ejemplos = ", ".join(map(str, unique_vals))
             else:
-                ejemplos = ", ".join(map(str, random.sample(unique_values, 5))) + "..."
+                ejemplos = ", ".join(map(str, random.sample(unique_vals, 5))) + "..."
 
             info_data.append({
                 "Columna": col,
-                "Tipo": dtype,
-                "Nulos": nulos,
-                "Valores Únicos": num_unique,
-                "Ejemplos / Valores": ejemplos
+                "Tipo": str(df[col].dtype),
+                "Nulos": df[col].isnull().sum(),
+                "Únicos": num_unique,
+                "Valores de ejemplo": ejemplos
             })
-        
         st.table(pd.DataFrame(info_data))
 
-        # --- SECCIÓN 3: VISUALIZACIÓN E INSIGHTS CON IA ---
+        # --- SECCIÓN 3: VISUALIZACIÓN E IA ---
         st.divider()
-        st.subheader("📈 Análisis Visual e Inteligencia Artificial")
-        
         numeric_cols = df.select_dtypes(include=['number']).columns.tolist()
         all_cols = df.columns.tolist()
 
         if numeric_cols:
-            # Diseño de dos columnas: Gráfico a la izquierda, IA a la derecha
-            col_viz, col_ai = st.columns([2, 1])
+            col_main, col_sidebar = st.columns([2, 1])
 
-            with col_viz:
-                st.markdown("### Configuración")
-                c1, c2 = st.columns(2)
-                with c1:
-                    feat_x = st.selectbox("Selecciona Eje X", all_cols)
-                with c2:
-                    feat_y = st.selectbox("Selecciona Eje Y (Numérico)", numeric_cols)
+            with col_sidebar:
+                st.markdown("### ⚙️ Configuración")
+                feat_x = st.selectbox("Eje X (Categorías/Tiempo)", all_cols)
+                feat_y = st.selectbox("Eje Y (Valores numéricos)", numeric_cols)
+                chart_type = st.radio("Tipo de gráfico", ["Barras", "Líneas", "Dispersión", "Boxplot"])
                 
-                chart_type = st.segmented_control(
-                    "Tipo de gráfico", 
-                    options=["Dispersión", "Líneas", "Barras", "Boxplot"],
-                    default="Dispersión"
-                )
+                st.markdown("---")
+                ai_button = st.button("🪄 Obtener Insights con IA")
 
-                # Renderizado del gráfico
-                if chart_type == "Dispersión":
-                    fig = px.scatter(df, x=feat_x, y=feat_y, template="plotly_dark")
-                elif chart_type == "Boxplot":
-                    fig = px.box(df, x=feat_x, y=feat_y, template="plotly_dark")
+            with col_main:
+                st.subheader("📈 Visualización Interactiva")
+                if chart_type == "Barras":
+                    fig = px.bar(df, x=feat_x, y=feat_y, template="plotly_dark", color_discrete_sequence=['#636EFA'])
                 elif chart_type == "Líneas":
                     fig = px.line(df, x=feat_x, y=feat_y, template="plotly_dark")
+                elif chart_type == "Dispersión":
+                    fig = px.scatter(df, x=feat_x, y=feat_y, template="plotly_dark")
                 else:
-                    fig = px.bar(df, x=feat_x, y=feat_y, template="plotly_dark")
+                    fig = px.box(df, x=feat_x, y=feat_y, template="plotly_dark")
                 
                 st.plotly_chart(fig, use_container_width=True)
 
-            with col_ai:
-                st.markdown("### ✨ Insights de Gemini")
-                if st.button("🪄 Analizar tendencia con IA"):
-                    with st.spinner("Gemini está analizando los datos..."):
-                        # Creamos un resumen estadístico rápido para enviárselo a la IA
-                        stats_summary = df.groupby(feat_x)[feat_y].describe().head(10).to_string()
-                        
-                        prompt = f"""
-                        Eres un experto científico de datos. Analiza la relación entre '{feat_x}' (Eje X) y '{feat_y}' (Eje Y).
-                        Basado en este resumen estadístico:
-                        {stats_summary}
-                        
-                        Dime 3 observaciones clave del gráfico y una recomendación estratégica. 
-                        Sé breve, profesional y usa puntos de lista.
-                        """
-                        
-                        try:
-                            response = model.generate_content(prompt)
-                            st.info(response.text)
-                        except Exception as e:
-                            st.error(f"Error al conectar con Gemini: {e}")
+            # --- LÓGICA DE INTELIGENCIA ARTIFICIAL ---
+            if ai_button:
+                with st.spinner("Consultando a Gemini..."):
+                    # RESUMEN ULTRA-COMPRIMIDO para no exceder cuotas gratuitas
+                    # Agrupamos por X para ver cómo se comporta Y
+                    stats = df.groupby(feat_x)[feat_y].describe().head(5).to_string()
+                    
+                    prompt = f"""
+                    Analiza como experto: Gráfico {chart_type} de {feat_y} por {feat_x}.
+                    Datos estadísticos:
+                    {stats}
+                    
+                    Dime en 3 frases muy cortas qué destaca y una recomendación.
+                    """
+                    
+                    try:
+                        # Llamada a la API
+                        response = client.models.generate_content(model=MODEL_ID, contents=prompt)
+                        st.info(f"### ✨ Análisis de la IA\n\n{response.text}")
+                    except Exception as e:
+                        if "429" in str(e):
+                            st.warning("⚠️ El plan gratuito está saturado. Espera 15 segundos y pulsa el botón otra vez.")
+                        else:
+                            st.error(f"Hubo un problema con el modelo {MODEL_ID}: {e}")
         else:
-            st.warning("Se necesita al menos una columna numérica para realizar el análisis visual.")
+            st.warning("⚠️ No se detectaron columnas numéricas para graficar.")
 
     except Exception as e:
-        st.error(f"Ocurrió un error al procesar el archivo: {e}")
+        st.error(f"❌ Error al procesar el archivo: {e}")
 else:
-    st.info("👋 ¡Bienvenido! Por favor, sube un archivo CSV o Excel para comenzar el análisis.")
-
-
-
+    st.info("👋 Por favor, carga un archivo para empezar el análisis.")
