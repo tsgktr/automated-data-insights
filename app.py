@@ -26,7 +26,7 @@ if uploaded_file is not None:
             st.dataframe(df.head(5))
 
         # --- SECCIÓN 2: INFORMACIÓN DE COLUMNAS ---
-        st.subheader("🔍 Información Detallada de Columnas")
+        st.subheader("🔍 Estructura de las Columnas")
         info_data = []
         for col in df.columns:
             dtype = str(df[col].dtype)
@@ -40,19 +40,43 @@ if uploaded_file is not None:
                 ejemplos = ", ".join(map(str, random.sample(all_unique, 5))) + "..."
 
             info_data.append({
-                "Columna": col,
-                "Tipo": dtype,
-                "Nulos": nulos,
-                "Valores Únicos": unf_values,
-                "Ejemplos / Valores": ejemplos
+                "Columna": col, "Tipo": dtype, "Nulos": nulos,
+                "Únicos": unf_values, "Ejemplos": ejemplos
             })
         st.table(pd.DataFrame(info_data))
 
-        # --- SECCIÓN 3: VISUALIZACIÓN ---
+        # --- NUEVA SECCIÓN: DESCRIPTIVOS SELECCIONABLES ---
         st.divider()
-        st.subheader("📈 Visualización y Guía de Interpretación")
+        st.subheader("🔢 Análisis Descriptivo Personalizado")
+        st.markdown("Selecciona las variables numéricas que deseas analizar a fondo.")
         
         numeric_cols = df.select_dtypes(include=['number']).columns.tolist()
+        
+        if numeric_cols:
+            selected_vars = st.multiselect("Selecciona variables:", numeric_cols, default=numeric_cols[:2] if len(numeric_cols) > 1 else numeric_cols)
+            
+            if selected_vars:
+                # Calculamos descriptivos y transponemos para mejor lectura
+                desc_df = df[selected_vars].describe().T
+                # Añadimos métricas extra
+                desc_df['Suma Total'] = df[selected_vars].sum()
+                desc_df['Varianza'] = df[selected_vars].var()
+                
+                # Renombrar columnas para claridad
+                desc_df.columns = ['Registros', 'Media', 'Desv. Estándar', 'Mín', '25%', '50% (Mediana)', '75%', 'Máx', 'Suma Total', 'Varianza']
+                
+                st.dataframe(desc_df.style.format("{:,.2f}").background_gradient(cmap='Blues'))
+                
+                
+            else:
+                st.info("Selecciona al menos una variable para ver sus descriptivos.")
+        else:
+            st.warning("No se encontraron variables numéricas para realizar cálculos estadísticos.")
+
+        # --- SECCIÓN 4: VISUALIZACIÓN ---
+        st.divider()
+        st.subheader("📈 Visualización e Interpretation")
+        
         all_cols = df.columns.tolist()
 
         if numeric_cols:
@@ -64,68 +88,51 @@ if uploaded_file is not None:
                 feat_y = st.selectbox("Eje Y (Valores Numéricos)", numeric_cols)
                 
                 chart_type = st.radio(
-                    "Selecciona el tipo de gráfico", 
+                    "Tipo de gráfico", 
                     ["Barras", "Dispersión", "Líneas", "Boxplot", "Violín", "Histograma", "Histograma + Densidad"]
                 )
 
             with col_viz2:
-                # --- LÓGICA DE GRÁFICOS ---
-                
                 if chart_type == "Barras":
-                    # Agrupamos para calcular totales y porcentajes
                     df_counts = df.groupby(feat_x)[feat_y].sum().reset_index()
                     total_sum = df_counts[feat_y].sum()
-                    
-                    # Etiqueta: Valor formateado + (Porcentaje%)
-                    df_counts['label'] = df_counts[feat_y].apply(
-                        lambda x: f"{x:,.0f}<br>({(x/total_sum)*100:.1f}%)" if total_sum != 0 else "0"
-                    )
-
+                    df_counts['label'] = df_counts[feat_y].apply(lambda x: f"{x:,.0f}<br>({(x/total_sum)*100:.1f}%)" if total_sum != 0 else "0")
                     fig = px.bar(df_counts, x=feat_x, y=feat_y, text='label', template="plotly_dark")
-                    
-                    # AJUSTE DEL EJE Y: Aumentamos un 20% el rango superior para que las etiquetas no se corten
                     max_y = df_counts[feat_y].max()
                     fig.update_yaxes(range=[0, max_y * 1.2]) 
                     fig.update_traces(textposition='outside')
-                    
-                    exp = """
-                    **¿Cómo interpretar las Barras?**
-                    * **Total y Porcentaje:** El número arriba indica el valor exacto, mientras que el % muestra el peso de cada barra sobre el total.
-                    * **Comparación:** Es la mejor herramienta para ver diferencias de magnitud entre categorías.
-                    """
+                    exp = "**Interpretación:** El porcentaje muestra el peso de cada categoría sobre el total sumado."
 
                 elif chart_type == "Dispersión":
                     fig = px.scatter(df, x=feat_x, y=feat_y, template="plotly_dark")
-                    exp = "**Interpretación:** Busca patrones de correlación. Si los puntos forman una línea ascendente, las variables crecen juntas."
+                    exp = "**Interpretación:** Busca patrones lineales o nubes de puntos para entender la correlación."
 
                 elif chart_type == "Líneas":
                     fig = px.line(df, x=feat_x, y=feat_y, template="plotly_dark")
-                    exp = "**Interpretación:** Ideal para series temporales. Observa si hay una tendencia clara al alza o a la baja."
+                    exp = "**Interpretación:** Ideal para ver la evolución de una métrica."
 
                 elif chart_type == "Boxplot":
                     fig = px.box(df, x=feat_x, y=feat_y, template="plotly_dark")
-                    exp = "**Interpretación:** La línea central es la mediana. Los puntos fuera de los bigotes son valores atípicos (outliers)."
+                    exp = "**Interpretación:** La caja muestra el rango intercuartílico; los puntos externos son valores atípicos."
 
                 elif chart_type == "Violín":
                     fig = px.violin(df, x=feat_x, y=feat_y, box=True, points="all", template="plotly_dark")
-                    exp = "**Interpretación:** El ancho indica dónde hay más datos. Es un híbrido entre un Boxplot y un Histograma."
+                    exp = "**Interpretación:** Combina boxplot con densidad para ver dónde se agrupan más los datos."
 
                 elif chart_type == "Histograma":
                     fig = px.histogram(df, x=feat_y, template="plotly_dark", text_auto=True)
-                    # Ajuste de eje Y para histogramas con etiquetas automáticas
                     fig.update_layout(bargap=0.1)
                     fig.update_traces(textposition='outside')
-                    exp = "**Interpretación:** Muestra la frecuencia de los datos. Ayuda a identificar si la mayoría de los valores son bajos, medios o altos."
+                    exp = "**Interpretación:** Muestra la forma de la distribución de una sola variable."
 
                 else: # Histograma + Densidad
                     fig = px.histogram(df, x=feat_y, marginal="rug", histnorm='probability density', template="plotly_dark")
-                    exp = "**Interpretación:** La curva suavizada muestra la 'silueta' de tus datos, facilitando ver la probabilidad de ocurrencia."
+                    exp = "**Interpretación:** La curva suavizada representa la probabilidad de encontrar un valor en ese rango."
 
-                # Renderizado del gráfico
                 st.plotly_chart(fig, use_container_width=True)
                 st.info(exp)
 
     except Exception as e:
         st.error(f"Error al procesar los datos: {e}")
 else:
-    st.info("👋 Sube un archivo CSV o Excel para comenzar el análisis automático.")
+    st.info("👋 Sube un archivo CSV o Excel para comenzar.")
