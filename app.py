@@ -5,12 +5,16 @@ import google.generativeai as genai
 import random
 
 # --- CONFIGURACIÓN DE GEMINI (Segura a través de Secrets) ---
+# --- CONFIGURACIÓN DE GEMINI ---
 try:
     API_KEY = st.secrets["GEMINI_KEY"]
     genai.configure(api_key=API_KEY)
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    
+    # Usamos gemini-1.5-flash que es el estándar actual más rápido
+    model = genai.GenerativeModel(model_name='gemini-1.5-flash') 
+    
 except Exception as e:
-    st.error("⚠️ No se encontró la GEMINI_KEY en los Secrets o hay un error de configuración.")
+    st.error(f"⚠️ Error en la configuración de la IA: {e}")
 
 # --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(page_title="Automated Data Insights + IA", layout="wide")
@@ -126,4 +130,5 @@ if uploaded_file is not None:
         st.error(f"Ocurrió un error al procesar el archivo: {e}")
 else:
     st.info("👋 ¡Bienvenido! Por favor, sube un archivo CSV o Excel para comenzar el análisis.")
+
 
