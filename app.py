@@ -77,14 +77,38 @@ if uploaded_file is not None:
 
                 # --- EXPLICACIONES DE LAS MÉTRICAS ---
                 with st.expander("❓ ¿Qué significan estos números? (Guía rápida)"):
+# --- GUÍA DE INTERPRETACIÓN DESARROLLADA ---
+                st.markdown("### 📘 Guía de Interpretación y Casos Reales")
+                
+                col_exp1, col_exp2 = st.columns(2)
+                
+                with col_exp1:
                     st.markdown("""
-                    * **Media:** Es el promedio aritmético. Indica el "centro" de tus datos.
-                    * **Desv. Estándar:** Indica cuánto se alejan los datos de la media. Si es alta, los datos están muy dispersos; si es baja, están agrupados cerca del promedio.
-                    * **Varianza:** Al igual que la desviación, mide la dispersión (es el cuadrado de la desviación). Útil para cálculos estadísticos avanzados.
-                    * **Mínimo y Máximo:** Los valores extremos detectados en la columna.
-                    * **25% (Primer Cuartil):** El 25% de tus datos están por debajo de este valor. Ayuda a entender la parte baja de la distribución.
-                    * **50% (Mediana):** Es el valor central. El 50% de los datos son menores y el 50% son mayores. A diferencia de la media, no le afectan los valores extremos (outliers).
-                    * **75% (Tercer Cuartil):** El 75% de tus datos están por debajo de este valor. Ayuda a entender la parte alta de la distribución.
+                    #### 1. Centralidad y Tendencia
+                    * **Media:** Es el punto de equilibrio. Si la media de "Tiempo de Entrega" es 5 días, ese es tu estándar actual.
+                    * **50% (Mediana):** El centro real. Si la media es 10 pero la mediana es 5, tienes unos pocos casos que tardan muchísimo y "ensucian" tu promedio.
+                    
+                    
+                    #### 2. Dispersión (¿Qué tan fiable es el dato?)
+                    * **Desv. Estándar:** Si vendes un producto a 100€ con desv. de 2€, tus precios son **consistentes**. Si la desv. es de 40€, tus precios son **caóticos**.
+                    * **Varianza:** Nos dice cuánta "sorpresa" hay en los datos. A mayor varianza, más difícil es predecir el futuro.
+                    
+                    """)
+
+                with col_exp2:
+                    st.markdown("""
+                    #### 3. Los Cuartiles en el Mundo Real
+                    * **25% (Q1 - El umbral inferior):** * *Ejemplo:* "El 25% de mis clientes gasta menos de 15€". Son tus clientes de bajo ticket.
+                    * **75% (Q3 - El umbral superior):** * *Ejemplo:* "El 75% de mis empleados gana menos de 2000€". El 25% restante son tus perfiles senior o directivos.
+                    
+                    
+                    #### 4. Ejemplo de Diagnóstico Rápido
+                    Si analizas **"Salarios"** y ves:
+                    * **Mínimo:** 1.000€ / **Máximo:** 50.000€
+                    * **Media:** 8.000€
+                    * **Mediana (50%):** 2.500€
+                    
+                    **Insight:** La mayoría gana cerca de 2.500€, pero hay directivos ganando 50.000€ que hacen que la media parezca mucho más alta de lo que realmente es. ¡No te fíes de la media en este caso!
                     """)
             else:
                 st.info("Selecciona al menos una variable en el buscador de arriba.")
@@ -154,3 +178,4 @@ if uploaded_file is not None:
         st.error(f"Error al procesar los datos: {e}")
 else:
     st.info("👋 Sube un archivo CSV o Excel para comenzar.")
+
