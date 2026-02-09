@@ -157,7 +157,11 @@ if uploaded_file is not None:
                         st.success("✅ Diferencia Significativa")
                     else:
                         st.warning("⚠️ Diferencia NO Significativa")
+        else:
+            st.warning("No se han encontrado columnas binarias ")
+            
     except Exception as e:
         st.error(f"Error: {e}")
 else:
     st.info("👋 Sube un archivo para comenzar.")
+
