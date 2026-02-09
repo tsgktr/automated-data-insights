@@ -7,7 +7,7 @@ import random
 st.set_page_config(page_title="Automated Data Insights Pro", layout="wide")
 
 st.title("📊 Automated Data Insights")
-st.markdown("Analítica descriptiva automática con visualización optimizada.")
+st.markdown("Analítica descriptiva automática con interpretación guiada para toma de decisiones.")
 
 uploaded_file = st.file_uploader("Elige un fichero (CSV o Excel)", type=['csv', 'xlsx'])
 
@@ -60,55 +60,54 @@ if uploaded_file is not None:
                 desc['Suma Total'] = df[selected_vars].sum()
                 desc['Varianza'] = df[selected_vars].var()
                 
-                # Reorganizamos y renombramos las columnas según tu petición
-                # El orden original de describe().T es: count, mean, std, min, 25%, 50%, 75%, max
+                # Reorganizamos las columnas: Media -> Desv -> Varianza -> Mín -> Máx -> Cuartiles
                 columns_order = [
-                    'count', 'mean', 'std', 'Varianza', 'min', 'max', '25%', '50%', '75%', 'Suma Total'
+                    'mean', 'std', 'Varianza', 'min', 'max', '25%', '50%', '75%', 'count', 'Suma Total'
                 ]
                 desc_df = desc[columns_order]
                 
                 desc_df.columns = [
-                    'Registros', 'Media', 'Desv. Estándar', 'Varianza', 'Mínimo', 'Máximo', 
-                    '25% (Q1)', '50% (Mediana)', '75% (Q3)', 'Suma Total'
+                    'Media', 'Desv. Estándar', 'Varianza', 'Mínimo', 'Máximo', 
+                    '25% (Q1)', '50% (Mediana)', '75% (Q3)', 'Registros', 'Suma Total'
                 ]
                 
-                # Mostrar tabla
+                # Mostrar tabla formateada
                 st.dataframe(desc_df.style.format("{:,.2f}"))
 
-                # --- EXPLICACIONES DE LAS MÉTRICAS ---
-                with st.expander("❓ ¿Qué significan estos números? (Guía rápida)"):
-# --- GUÍA DE INTERPRETACIÓN DESARROLLADA ---
+                # --- GUÍA DE INTERPRETACIÓN DESARROLLADA CON EJEMPLOS ---
                 st.markdown("### 📘 Guía de Interpretación y Casos Reales")
                 
                 col_exp1, col_exp2 = st.columns(2)
                 
                 with col_exp1:
                     st.markdown("""
-                    #### 1. Centralidad y Tendencia
-                    * **Media:** Es el punto de equilibrio. Si la media de "Tiempo de Entrega" es 5 días, ese es tu estándar actual.
-                    * **50% (Mediana):** El centro real. Si la media es 10 pero la mediana es 5, tienes unos pocos casos que tardan muchísimo y "ensucian" tu promedio.
+                    #### 1. Centralidad: ¿Dónde está el "foco"?
+                    * **Media:** Es el promedio. Si la media de "Días de Cobro" es 30, ese es tu desempeño estándar.
+                    * **50% (Mediana):** El centro real. Si tienes 10 facturas de 1€ y una de 1.000.000€, la *Media* será altísima, pero la *Mediana* te dirá que la mayoría de tus facturas son pequeñas.
                     
                     
-                    #### 2. Dispersión (¿Qué tan fiable es el dato?)
-                    * **Desv. Estándar:** Si vendes un producto a 100€ con desv. de 2€, tus precios son **consistentes**. Si la desv. es de 40€, tus precios son **caóticos**.
-                    * **Varianza:** Nos dice cuánta "sorpresa" hay en los datos. A mayor varianza, más difícil es predecir el futuro.
+                    #### 2. Dispersión: ¿Qué tan fiable es el dato?
+                    * **Desv. Estándar:** Mide la estabilidad. 
+                        * *Ejemplo:* Si fabricas piezas de 10cm con desv. de 0.01cm, tu proceso es **preciso**. Si la desv. es de 2cm, tu proceso es **caótico** y defectuoso.
+                    * **Varianza:** Indica la cantidad de "sorpresas" o incertidumbre. A mayor varianza, más difícil es predecir resultados futuros.
                     
                     """)
 
                 with col_exp2:
                     st.markdown("""
-                    #### 3. Los Cuartiles en el Mundo Real
-                    * **25% (Q1 - El umbral inferior):** * *Ejemplo:* "El 25% de mis clientes gasta menos de 15€". Son tus clientes de bajo ticket.
-                    * **75% (Q3 - El umbral superior):** * *Ejemplo:* "El 75% de mis empleados gana menos de 2000€". El 25% restante son tus perfiles senior o directivos.
+                    #### 3. Rango y Posicionamiento (Cuartiles)
+                    * **Mínimo y Máximo:** Indican los límites. Sirven para detectar errores (ej. una edad de 200 años) o récords históricos.
+                    * **25% (Q1 - Umbral Inferior):** *Ejemplo:* "El 25% de mis ventas son menores a 50€". Identifica tu segmento de bajo ticket.
+                    * **75% (Q3 - Umbral Superior):** *Ejemplo:* "El 75% de mis envíos tardan menos de 3 días". El 25% restante son los que necesitan atención urgente por lentos.
                     
                     
                     #### 4. Ejemplo de Diagnóstico Rápido
-                    Si analizas **"Salarios"** y ves:
-                    * **Mínimo:** 1.000€ / **Máximo:** 50.000€
-                    * **Media:** 8.000€
-                    * **Mediana (50%):** 2.500€
+                    Si analizas el **"Tiempo de Respuesta a Clientes"**:
+                    - **Media:** 12 horas.
+                    - **Mediana (50%):** 2 horas.
+                    - **Máximo:** 120 horas.
                     
-                    **Insight:** La mayoría gana cerca de 2.500€, pero hay directivos ganando 50.000€ que hacen que la media parezca mucho más alta de lo que realmente es. ¡No te fíes de la media en este caso!
+                    **Insight:** Tu equipo suele responder rápido (2h), pero hay algunos casos olvidados (120h) que están arruinando tu promedio y tu reputación. ¡Ataca los valores máximos!
                     """)
             else:
                 st.info("Selecciona al menos una variable en el buscador de arriba.")
@@ -117,7 +116,7 @@ if uploaded_file is not None:
 
         # --- SECCIÓN 4: VISUALIZACIÓN ---
         st.divider()
-        st.subheader("📈 Visualización e Interpretación")
+        st.subheader("📈 Visualización e Interpretación de Gráficos")
         
         all_cols = df.columns.tolist()
 
@@ -143,33 +142,34 @@ if uploaded_file is not None:
                     max_y = df_counts[feat_y].max()
                     fig.update_yaxes(range=[0, max_y * 1.2]) 
                     fig.update_traces(textposition='outside')
-                    exp = "**Interpretación:** Compara magnitudes entre categorías. El % indica el peso relativo de cada barra."
+                    exp = "**Interpretación de Barras:** Compara el peso de cada categoría. El porcentaje (%) indica la relevancia sobre el total acumulado."
 
                 elif chart_type == "Dispersión":
                     fig = px.scatter(df, x=feat_x, y=feat_y, template="plotly_dark")
-                    exp = "**Interpretación:** Analiza la relación entre dos variables numéricas."
+                    exp = "**Interpretación de Dispersión:** Busca nubes de puntos. Si hay una línea clara, una variable influye directamente en la otra."
 
                 elif chart_type == "Líneas":
                     fig = px.line(df, x=feat_x, y=feat_y, template="plotly_dark")
-                    exp = "**Interpretación:** Ideal para observar tendencias y evolución temporal."
+                    exp = "**Interpretación de Líneas:** Ideal para ver evolución. Los picos y valles muestran momentos de éxito o crisis."
 
                 elif chart_type == "Boxplot":
                     fig = px.box(df, x=feat_x, y=feat_y, template="plotly_dark")
-                    exp = "**Interpretación:** Muestra la distribución mediante cuartiles. Los puntos aislados son outliers."
+                    exp = "**Interpretación de Boxplot:** Visualiza la tabla de descriptivos. La caja es el 50% de tus datos. Los puntos fuera son tus excepciones."
+                    
 
                 elif chart_type == "Violín":
                     fig = px.violin(df, x=feat_x, y=feat_y, box=True, points="all", template="plotly_dark")
-                    exp = "**Interpretación:** Muestra la densidad de los datos. Donde el violín es más ancho, hay más registros."
+                    exp = "**Interpretación de Violín:** Donde el violín es más ancho, hay más concentración de casos. Es la 'huella dactilar' de tus datos."
 
                 elif chart_type == "Histograma":
                     fig = px.histogram(df, x=feat_y, template="plotly_dark", text_auto=True)
                     fig.update_layout(bargap=0.1)
                     fig.update_traces(textposition='outside')
-                    exp = "**Interpretación:** Clasifica los datos en rangos para ver su frecuencia."
+                    exp = "**Interpretación de Histograma:** Muestra cuántos registros caen en cada rango. ¿Tienes una distribución equilibrada o concentrada en los extremos?"
 
                 else: # Histograma + Densidad
                     fig = px.histogram(df, x=feat_y, marginal="rug", histnorm='probability density', template="plotly_dark")
-                    exp = "**Interpretación:** La curva suavizada permite ver la forma de la probabilidad de los datos."
+                    exp = "**Interpretación de Densidad:** La curva suavizada elimina el ruido visual para mostrar la probabilidad real de que ocurra un valor."
 
                 st.plotly_chart(fig, use_container_width=True)
                 st.info(exp)
@@ -177,5 +177,4 @@ if uploaded_file is not None:
     except Exception as e:
         st.error(f"Error al procesar los datos: {e}")
 else:
-    st.info("👋 Sube un archivo CSV o Excel para comenzar.")
-
+    st.info("👋 Sube un archivo CSV o Excel para comenzar el análisis profesional.")
