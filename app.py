@@ -86,7 +86,6 @@ if uploaded_file is not None:
                         st.markdown("""
                         **3. Posicionamiento:** El **25% (Q1)** y **75% (Q3)** marcan los umbrales de tus valores bajos y altos.
                         """)
-                        
 
         # --- SECCIÓN 4: VISUALIZACIÓN CON SEGMENTACIÓN ---
         st.divider()
@@ -99,43 +98,35 @@ if uploaded_file is not None:
                 st.markdown("### ⚙️ Configuración")
                 feat_y = st.selectbox("Métrica (Eje Y)", numeric_cols)
                 
-                # Aquí añadimos el COMBO DE SEGMENTACIÓN que pediste
-                segmentar_por = st.selectbox(
-                    "Segmentar/Agrupar por:", 
-                    ["Año", "Mes", "Día Semana", "Trimestre"] + [c for c in df.columns if df[c].nunique() < 15 and c not in numeric_cols]
-                )
+                # Opciones de segmentación
+                time_options = ["Año", "Mes", "Día Semana", "Trimestre"]
+                available_segments = [opt for opt in time_options if opt in df.columns]
+                extra_segments = [c for c in df.columns if df[c].nunique() < 15 and c not in numeric_cols and c not in time_options]
                 
+                segmentar_por = st.selectbox("Segmentar/Agrupar por:", available_segments + extra_segments)
                 chart_type = st.radio("Tipo de gráfico", ["Barras", "Líneas", "Boxplot", "Violín"])
 
             with col_viz2:
-                # Preparar datos agrupados para Barras y Líneas
-                df_grouped = df.groupby(segmentar_por)[feat_y].agg(['sum', 'mean']).reset_index()
-                
                 if chart_type == "Barras":
-                    # Usamos el total sumado para las barras
-                    total_sum = df_grouped['sum'].sum()
-                    df_grouped['label'] = df_grouped['sum'].apply(lambda x: f"{x:,.0f}<br>({(x/total_sum)*100:.1f}%)" if total_sum != 0 else "0")
-                    fig = px.bar(df_grouped, x=segmentar_por, y='sum', text='label', template="plotly_dark", title=f"Total de {feat_y} por {segmentar_por}")
-                    fig.update_yaxes(range=[0, df_grouped['sum'].max() * 1.2])
+                    df_grouped = df.groupby(segmentar_por)[feat_y].sum().reset_index()
+                    total_sum = df_grouped[feat_y].sum()
+                    df_grouped['label'] = df_grouped[feat_y].apply(lambda x: f"{x:,.0f}<br>({(x/total_sum)*100:.1f}%)" if total_sum != 0 else "0")
+                    fig = px.bar(df_grouped, x=segmentar_por, y=feat_y, text='label', template="plotly_dark", title=f"Total de {feat_y} por {segmentar_por}")
+                    fig.update_yaxes(range=[0, df_grouped[feat_y].max() * 1.2])
                     fig.update_traces(textposition='outside')
 
                 elif chart_type == "Líneas":
-                    # Usamos el promedio para las líneas (mejor para ver tendencias)
-                    fig = px.line(df_grouped, x=segmentar_por, y='mean', template="plotly_dark", markers=True, title=f"Promedio de {feat_y} por {segmentar_por}")
-                    
-
-[Image of a line graph showing trends]
-
+                    df_grouped = df.groupby(segmentar_por)[feat_y].mean().reset_index()
+                    fig = px.line(df_grouped, x=segmentar_por, y=feat_y, template="plotly_dark", markers=True, title=f"Promedio de {feat_y} por {segmentar_por}")
 
                 elif chart_type == "Boxplot":
                     fig = px.box(df, x=segmentar_por, y=feat_y, template="plotly_dark", title=f"Distribución de {feat_y} por {segmentar_por}")
 
                 else: # Violín
                     fig = px.violin(df, x=segmentar_por, y=feat_y, box=True, points="all", template="plotly_dark", title=f"Densidad de {feat_y} por {segmentar_por}")
-                    
 
                 st.plotly_chart(fig, use_container_width=True)
-                st.info(f"💡 Interpretación: Este gráfico muestra cómo se distribuye o evoluciona '{feat_y}' cuando lo dividimos por '{segmentar_por}'.")
+                st.info(f"💡 Interpretación: Este gráfico muestra cómo se comporta '{feat_y}' segmentado por '{segmentar_por}'.")
 
     except Exception as e:
         st.error(f"Error al procesar los datos: {e}")
