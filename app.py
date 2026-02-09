@@ -27,7 +27,7 @@ if uploaded_file is not None:
                 except:
                     continue
 
-        # 3. EXTRACCIÓN DE DIMENSIONES (Si hay fechas)
+        # 3. EXTRACCIÓN DE DIMENSIONES TEMPORALES
         date_cols = df.select_dtypes(include=['datetime64']).columns.tolist()
         if date_cols:
             main_date = date_cols[0]
@@ -46,7 +46,7 @@ if uploaded_file is not None:
         
         numeric_cols = df.select_dtypes(include=['number']).columns.tolist()
         # Identificamos columnas para segmentar (Fechas + Categorías con pocos valores)
-        potential_segments = ["Sin Segmentar"] + [c for c in df.columns if df[c].nunique() < 20 and c not in numeric_cols]
+        potential_segments = ["Sin Segmentar"] + [c for c in df.columns if df[c].nunique() < 25 and c not in numeric_cols]
         
         if numeric_cols:
             col_sel1, col_sel2 = st.columns([2, 1])
@@ -59,46 +59,54 @@ if uploaded_file is not None:
 
             if selected_vars:
                 if segment_by == "Sin Segmentar":
-                    # Tabla estándar
+                    # --- MODO NORMAL ---
                     desc = df[selected_vars].describe().T
                     desc['Suma Total'] = df[selected_vars].sum()
                     desc['Varianza'] = df[selected_vars].var()
-                else:
-                    # TABLA SEGMENTADA: Agrupamos por la dimensión elegida
-                    # Calculamos las métricas manualmente para poder agrupar
-                    desc = df.groupby(segment_by)[selected_vars].agg(['mean', 'std', 'min', 'max', 'count', 'sum', 'median', 'var']).stack()
-                    desc = desc.reset_index().rename(columns={'level_1': 'Variable'})
-                    # Reorganizamos para que se vea como la descriptiva clásica
-                    desc = desc.rename(columns={
-                        'mean': 'mean', 'std': 'std', 'var': 'Varianza', 
-                        'min': 'min', 'max': 'max', 'sum': 'Suma Total', 'count': 'count', 'median': '50%'
-                    })
-                    # Calculamos cuartiles adicionales si es necesario (simplificado para rendimiento)
-                    desc['25%'] = df.groupby(segment_by)[selected_vars].transform(lambda x: x.quantile(0.25)).mean() # Aproximación
-                    desc['75%'] = df.groupby(segment_by)[selected_vars].transform(lambda x: x.quantile(0.75)).mean() # Aproximación
-
-                # Reordenación de columnas solicitada
-                columns_order = ['mean', 'std', 'Varianza', 'min', 'max', 'median' if segment_by != "Sin Segmentar" else '50%', 'count', 'Suma Total']
-                
-                # Si es segmentada, mostramos la tabla agrupada
-                if segment_by != "Sin Segmentar":
-                    st.dataframe(desc.style.format(subset=['mean', 'std', 'Varianza', 'min', 'max', 'Suma Total'], formatter="{:,.2f}"))
-                else:
-                    # Reordenar descriptiva estándar
+                    
+                    # Reordenar y renombrar
                     desc_df = desc[['mean', 'std', 'Varianza', 'min', 'max', '25%', '50%', '75%', 'count', 'Suma Total']]
                     desc_df.columns = ['Media', 'Desv. Estándar', 'Varianza', 'Mínimo', 'Máximo', '25% (Q1)', '50% (Mediana)', '75% (Q3)', 'Registros', 'Suma Total']
-                    st.dataframe(desc_df.style.format("{:,.2f}"))
+                
+                else:
+                    # --- MODO SEGMENTADO (AGRUPADO) ---
+                    # Agrupamos y calculamos todas las métricas de una vez
+                    desc_grouped = df.groupby(segment_by)[selected_vars].agg(['mean', 'std', 'var', 'min', 'max', 'median', 'count', 'sum'])
+                    
+                    # Aplanamos el índice de columnas (que queda como multi-nivel)
+                    desc_grouped.columns = ['_'.join(col).strip() for col in desc_grouped.columns.values]
+                    desc_df = desc_grouped.reset_index()
+                    
+                    # Como hay múltiples variables, para no saturar la tabla, mostramos una variable a la vez si hay segmentación
+                    # o permitimos ver el bloque completo. Para esta versión, mostramos el bloque completo renombrado.
+                    final_cols = [segment_by]
+                    for var in selected_vars:
+                        # Renombramos para que el usuario entienda qué es qué
+                        desc_df = desc_df.rename(columns={
+                            f'{var}_mean': f'{var} | Media',
+                            f'{var}_std': f'{var} | Desv. Estándar',
+                            f'{var}_var': f'{var} | Varianza',
+                            f'{var}_min': f'{var} | Mínimo',
+                            f'{var}_max': f'{var} | Máximo',
+                            f'{var}_median': f'{var} | Mediana',
+                            f'{var}_count': f'{var} | Registros',
+                            f'{var}_sum': f'{var} | Suma Total'
+                        })
+                
+                # Mostrar tabla final
+                st.dataframe(desc_df.style.format(precision=2, thousands=".", decimal=","))
 
                 # --- DESPLEGABLE DE INTERPRETACIÓN ---
                 with st.expander("📘 Guía de Interpretación de Métricas"):
                     st.markdown("""
-                    * **Media vs Mediana:** Si la media es muy superior a la mediana, hay valores extremos inflando el promedio.
-                    
-                    * **Desv. Estándar y Varianza:** Miden la dispersión. Valores altos indican que los datos son muy volátiles y poco uniformes.
-                    
-                    * **Cuartiles (25%, 50%, 75%):** Dividen tus datos en cuatro partes iguales. El 75% indica que solo una cuarta parte de tus datos supera ese valor.
-                    
+                    ### 📘 Glosario Desarrollado
+                    * **Media:** Es el promedio aritmético. Indica el "centro" de tus datos.
+                    * **Desv. Estándar:** Indica cuánto se alejan los datos de la media. Si es alta, los datos están muy dispersos.
+                    * **Varianza:** El cuadrado de la desviación. Útil para medir la incertidumbre.
+                    * **50% (Mediana):** El valor central. Si la Media es muy distinta a la Mediana, hay valores extremos influyendo.
+                    * **Cuartiles (25%, 75%):** Indican dónde se corta el 25% más bajo y el 25% más alto de la muestra.
                     """)
+                    
 
         # --- SECCIÓN 3: VISUALIZACIÓN ---
         st.divider()
@@ -121,6 +129,6 @@ if uploaded_file is not None:
                 st.plotly_chart(fig, use_container_width=True)
 
     except Exception as e:
-        st.error(f"Error: {e}")
+        st.error(f"Se produjo un error al procesar la tabla: {e}")
 else:
-    st.info("👋 Sube un archivo para comenzar.")
+    st.info("👋 Sube un archivo para comenzar el análisis segmentado.")
