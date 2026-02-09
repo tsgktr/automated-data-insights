@@ -8,7 +8,7 @@ import random
 try:
     API_KEY = st.secrets["GEMINI_KEY"]
     genai.configure(api_key=API_KEY)
-    model = genai.GenerativeModel('gemini-pro')
+    model = genai.GenerativeModel('gemini-1.5-flash')
 except Exception as e:
     st.error("⚠️ No se encontró la GEMINI_KEY en los Secrets o hay un error de configuración.")
 
@@ -126,3 +126,4 @@ if uploaded_file is not None:
         st.error(f"Ocurrió un error al procesar el archivo: {e}")
 else:
     st.info("👋 ¡Bienvenido! Por favor, sube un archivo CSV o Excel para comenzar el análisis.")
+
