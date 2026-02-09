@@ -87,8 +87,9 @@ if uploaded_file is not None:
                         
                         #### 2. Dispersión: ¿Qué tan fiable es el dato?
                         * **Desv. Estándar:** Indica cuánto se alejan los datos de la media. Si es alta, los datos están muy dispersos; si es baja, están agrupados cerca del promedio.
-                        * **Varianza:** Al igual que la desviación, mide la dispersión (es el cuadrado de la desviación). Útil para cálculos estadísticos avanzados.
-                        
+                            * *Ejemplo:* Si fabricas piezas de 10cm con desv. de 0.01cm, tu proceso es **preciso**. Si la desv. es de 2cm, tu proceso es **caótico** y defectuoso.
+                        * **Varianza:** Al igual que la desviación, mide la dispersión (es el cuadrado de la desviación). 
+                        Útil para cálculos estadísticos avanzados: Indica la cantidad de "sorpresas" o incertidumbre. A mayor varianza, más difícil es predecir resultados futuros.
                         """)
 
                     with col_exp2:
@@ -174,3 +175,4 @@ if uploaded_file is not None:
         st.error(f"Error al procesar los datos: {e}")
 else:
     st.info("👋 Sube un archivo CSV o Excel para comenzar.")
+
