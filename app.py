@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import random
+from scipy import stats  # Requiere 'scipy' en requirements.txt
 
 # --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(page_title="Automated Data Insights Pro", layout="wide")
@@ -194,4 +195,5 @@ if uploaded_file is not None:
         st.error(f"Error: {e}")
 else:
     st.info("👋 Sube un archivo para comenzar.")
+
 
