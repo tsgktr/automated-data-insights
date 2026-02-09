@@ -7,7 +7,7 @@ import random
 st.set_page_config(page_title="Automated Data Insights Pro", layout="wide")
 
 st.title("📊 Automated Data Insights")
-st.markdown("Analítica descriptiva con detección inteligente de fechas y filtros temporales.")
+st.markdown("Analítica con Segmentación Temporal Inteligente.")
 
 uploaded_file = st.file_uploader("Elige un fichero (CSV o Excel)", type=['csv', 'xlsx'])
 
@@ -20,65 +20,49 @@ if uploaded_file is not None:
             df = pd.read_excel(uploaded_file)
         
         # 2. DETECCIÓN Y CONVERSIÓN DE FECHAS
-        # Intentamos convertir columnas que contengan 'fecha', 'date', 'time' o que parezcan fechas
         for col in df.columns:
             if df[col].dtype == 'object':
                 try:
-                    # Probamos si es convertible a fecha
                     df[col] = pd.to_datetime(df[col])
                 except:
                     continue
 
-        # 3. EXTRACCIÓN DE VARIABLES TEMPORALES (Si hay fechas)
+        # 3. SEGMENTACIÓN TEMPORAL (Sidebar)
         date_cols = df.select_dtypes(include=['datetime64']).columns.tolist()
         
         if date_cols:
-            st.sidebar.header("📅 Filtros Temporales")
-            # Usamos la primera columna de fecha detectada para los filtros maestros
-            main_date_col = st.sidebar.selectbox("Columna de fecha para filtrar:", date_cols)
+            st.sidebar.header("📅 Filtros y Segmentación")
+            main_date_col = st.sidebar.selectbox("Columna de tiempo maestra:", date_cols)
             
-            # Extraemos componentes para filtrar
+            # Crear dimensiones temporales
             df['Año'] = df[main_date_col].dt.year
-            df['Mes_Num'] = df[main_date_col].dt.month
             df['Mes'] = df[main_date_col].dt.month_name()
-            df['Semana_Año'] = df[main_date_col].dt.isocalendar().week
-            df['Dia_Semana'] = df[main_date_col].dt.day_name()
-
-            # Widgets de filtro en el sidebar
+            df['Día Semana'] = df[main_date_col].dt.day_name()
+            df['Trimestre'] = df[main_date_col].dt.quarter.apply(lambda x: f"T{x}")
+            
+            # Filtros dinámicos en el Sidebar
             years = sorted(df['Año'].unique().tolist())
-            selected_years = st.sidebar.multiselect("Filtrar por Año:", years, default=years)
+            selected_years = st.sidebar.multiselect("Año", years, default=years)
             
             months = df['Mes'].unique().tolist()
-            selected_months = st.sidebar.multiselect("Filtrar por Mes:", months, default=months)
-
-            # Aplicar filtros al DataFrame
-            df = df[(df['Año'].isin(selected_years)) & (df['Mes'].isin(selected_months))]
+            selected_months = st.sidebar.multiselect("Mes", months, default=months)
             
-            st.success(f"✅ Fechas detectadas en: {', '.join(date_cols)}. Filtros aplicados.")
-
+            # Aplicar Filtro Global
+            df = df[(df['Año'].isin(selected_years)) & (df['Mes'].isin(selected_months))]
+            st.sidebar.success(f"Analizando {len(df)} registros")
+        
         # --- SECCIÓN 1: VISTA PREVIA ---
-        with st.expander("👀 Ver vista previa de los datos filtrados"):
+        with st.expander("👀 Vista previa de datos filtrados"):
             st.dataframe(df.head(5))
 
-        # --- SECCIÓN 2: ESTRUCTURA ---
-        st.subheader("🔍 Estructura de las Columnas")
-        info_data = []
-        for col in df.columns:
-            info_data.append({
-                "Columna": col, "Tipo": str(df[col].dtype), 
-                "Nulos": df[col].isnull().sum(), "Únicos": df[col].nunique()
-            })
-        st.table(pd.DataFrame(info_data))
-
-        # --- SECCIÓN 3: DESCRIPTIVOS SELECCIONABLES ---
+        # --- SECCIÓN 2: DESCRIPTIVOS SELECCIONABLES ---
         st.divider()
         st.subheader("🔢 Análisis Descriptivo Personalizado")
         
-        # Incluimos las nuevas variables temporales si el usuario quiere analizarlas
         numeric_cols = df.select_dtypes(include=['number']).columns.tolist()
         
         if numeric_cols:
-            selected_vars = st.multiselect("Selecciona variables para analizar:", numeric_cols, default=numeric_cols[:2] if len(numeric_cols) > 1 else numeric_cols)
+            selected_vars = st.multiselect("Variables a analizar:", numeric_cols, default=numeric_cols[:2] if len(numeric_cols) > 1 else numeric_cols)
             
             if selected_vars:
                 desc = df[selected_vars].describe().T
@@ -95,42 +79,65 @@ if uploaded_file is not None:
                     col_exp1, col_exp2 = st.columns(2)
                     with col_exp1:
                         st.markdown("""
-                        #### 1. Centralidad y Dispersión
-                        * **Media vs Mediana (50%):** Si la media es muy distinta a la mediana, tus datos tienen sesgo (hay valores extremos).
-                        * **Desv. Estándar:** Si es muy alta respecto a la media, tus datos son poco uniformes.
+                        **1. Centralidad:** La **Media** es el promedio, pero la **Mediana (50%)** es más robusta si hay valores extremos.
+                        **2. Dispersión:** La **Desv. Estándar** indica estabilidad. Si es alta, tus datos son volátiles.
                         """)
                     with col_exp2:
                         st.markdown("""
-                        #### 2. Posicionamiento
-                        * **25% y 75%:** Marcan dónde empieza el grupo de valores "bajos" y dónde el de valores "altos" (Top 25%).
+                        **3. Posicionamiento:** El **25% (Q1)** y **75% (Q3)** marcan los umbrales de tus valores bajos y altos.
                         """)
                         
 
-        # --- SECCIÓN 4: VISUALIZACIÓN ---
+        # --- SECCIÓN 4: VISUALIZACIÓN CON SEGMENTACIÓN ---
         st.divider()
-        st.subheader("📈 Visualización e Interpretación")
+        st.subheader("📈 Visualización y Segmentación de Gráficos")
         
-        all_cols = df.columns.tolist()
         if numeric_cols:
             col_viz1, col_viz2 = st.columns([1, 2])
+            
             with col_viz1:
-                feat_x = st.selectbox("Eje X (Prueba a usar 'Mes' o 'Dia_Semana')", all_cols)
-                feat_y = st.selectbox("Eje Y", numeric_cols)
-                chart_type = st.radio("Tipo de gráfico", ["Barras", "Líneas", "Boxplot", "Violín", "Histograma"])
+                st.markdown("### ⚙️ Configuración")
+                feat_y = st.selectbox("Métrica (Eje Y)", numeric_cols)
+                
+                # Aquí añadimos el COMBO DE SEGMENTACIÓN que pediste
+                segmentar_por = st.selectbox(
+                    "Segmentar/Agrupar por:", 
+                    ["Año", "Mes", "Día Semana", "Trimestre"] + [c for c in df.columns if df[c].nunique() < 15 and c not in numeric_cols]
+                )
+                
+                chart_type = st.radio("Tipo de gráfico", ["Barras", "Líneas", "Boxplot", "Violín"])
 
             with col_viz2:
-                if chart_type == "Barras":
-                    # Ordenar meses cronológicamente si X es Mes
-                    df_plot = df.copy()
-                    fig = px.bar(df_plot.groupby(feat_x)[feat_y].sum().reset_index(), x=feat_x, y=feat_y, text_auto='.2s', template="plotly_dark")
-                elif chart_type == "Líneas":
-                    fig = px.line(df.groupby(feat_x)[feat_y].mean().reset_index(), x=feat_x, y=feat_y, template="plotly_dark")
-                elif chart_type == "Boxplot":
-                    fig = px.box(df, x=feat_x, y=feat_y, template="plotly_dark")
+                # Preparar datos agrupados para Barras y Líneas
+                df_grouped = df.groupby(segmentar_por)[feat_y].agg(['sum', 'mean']).reset_index()
                 
+                if chart_type == "Barras":
+                    # Usamos el total sumado para las barras
+                    total_sum = df_grouped['sum'].sum()
+                    df_grouped['label'] = df_grouped['sum'].apply(lambda x: f"{x:,.0f}<br>({(x/total_sum)*100:.1f}%)" if total_sum != 0 else "0")
+                    fig = px.bar(df_grouped, x=segmentar_por, y='sum', text='label', template="plotly_dark", title=f"Total de {feat_y} por {segmentar_por}")
+                    fig.update_yaxes(range=[0, df_grouped['sum'].max() * 1.2])
+                    fig.update_traces(textposition='outside')
+
+                elif chart_type == "Líneas":
+                    # Usamos el promedio para las líneas (mejor para ver tendencias)
+                    fig = px.line(df_grouped, x=segmentar_por, y='mean', template="plotly_dark", markers=True, title=f"Promedio de {feat_y} por {segmentar_por}")
+                    
+
+[Image of a line graph showing trends]
+
+
+                elif chart_type == "Boxplot":
+                    fig = px.box(df, x=segmentar_por, y=feat_y, template="plotly_dark", title=f"Distribución de {feat_y} por {segmentar_por}")
+
+                else: # Violín
+                    fig = px.violin(df, x=segmentar_por, y=feat_y, box=True, points="all", template="plotly_dark", title=f"Densidad de {feat_y} por {segmentar_por}")
+                    
+
                 st.plotly_chart(fig, use_container_width=True)
+                st.info(f"💡 Interpretación: Este gráfico muestra cómo se distribuye o evoluciona '{feat_y}' cuando lo dividimos por '{segmentar_por}'.")
 
     except Exception as e:
-        st.error(f"Error: {e}")
+        st.error(f"Error al procesar los datos: {e}")
 else:
-    st.info("👋 Sube un archivo para activar los filtros inteligentes de fecha.")
+    st.info("👋 Sube un archivo para comenzar el análisis segmentado.")
