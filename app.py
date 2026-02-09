@@ -144,7 +144,54 @@ if uploaded_file is not None:
                 
                 st.plotly_chart(fig, use_container_width=True)
 
+    # --- SECCIÓN 3: TEST DE HIPÓTESIS (T-TEST) ---
+        st.divider()
+        st.subheader("🧪 Validación de Hipótesis (T-Test)")
+        st.markdown("Compara si la diferencia entre **exactamente 2 grupos** es real o fruto del azar.")
+
+        # Buscamos columnas con solo 2 categorías
+        binary_cols = [c for c in df.columns if df[c].nunique() == 2]
+
+        if binary_cols and numeric_cols:
+            col_h1, col_h2 = st.columns(2)
+            with col_h1:
+                target_num = st.selectbox("Métrica a comparar (Numérica):", numeric_cols)
+            with col_h2:
+                group_col = st.selectbox("Dividir grupos por (Categórica):", binary_cols)
+
+            # Ejecución del Test
+            group_labels = df[group_col].unique()
+            g1_data = df[df[group_col] == group_labels[0]][target_num].dropna()
+            g2_data = df[df[group_col] == group_labels[1]][target_num].dropna()
+
+            if len(g1_data) > 1 and len(g2_data) > 1:
+                t_stat, p_value = stats.ttest_ind(g1_data, g2_data)
+
+                c_res1, c_res2 = st.columns(2)
+                with c_res1:
+                    st.metric(f"Media {group_labels[0]}", f"{g1_data.mean():,.2f}")
+                    st.metric(f"Media {group_labels[1]}", f"{g2_data.mean():,.2f}")
+                
+                with c_res2:
+                    st.write(f"**P-valor (Sig.):** `{p_value:.4f}`")
+                    if p_value < 0.05:
+                        st.success("✅ **Diferencia Significativa:** La probabilidad de que esto sea azar es menor al 5%. Hay un efecto real.")
+                    else:
+                        st.warning("⚠️ **Diferencia NO Significativa:** No hay pruebas suficientes. La diferencia podría ser casualidad.")
+                
+                with st.expander("❓ ¿Cómo entender este test?"):
+                    st.markdown("""
+                    El **P-valor** es la clave:
+                    * **Menor a 0.05:** Los grupos se comportan de forma distinta.
+                    * **Mayor a 0.05:** Los grupos se comportan de forma similar, cualquier diferencia es ruido.
+                    """)
+                    
+            else:
+                st.error("Los grupos seleccionados no tienen suficientes datos para la prueba.")
+        else:
+            st.info("Para activar esta sección, los datos deben tener una columna con 2 categorías (ej: Género, Pago: Sí/No).")
     except Exception as e:
         st.error(f"Error: {e}")
 else:
     st.info("👋 Sube un archivo para comenzar.")
+
