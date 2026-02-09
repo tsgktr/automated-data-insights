@@ -3,11 +3,11 @@ import pandas as pd
 import plotly.express as px
 import random
 
-# Configuración de la página
+# --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(page_title="Automated Data Insights Pro", layout="wide")
 
 st.title("📊 Automated Data Insights")
-st.markdown("Analítica descriptiva automática con guías de interpretación integradas.")
+st.markdown("Analítica descriptiva automática con visualización optimizada.")
 
 uploaded_file = st.file_uploader("Elige un fichero (CSV o Excel)", type=['csv', 'xlsx'])
 
@@ -75,68 +75,53 @@ if uploaded_file is not None:
                     # Agrupamos para calcular totales y porcentajes
                     df_counts = df.groupby(feat_x)[feat_y].sum().reset_index()
                     total_sum = df_counts[feat_y].sum()
+                    
                     # Etiqueta: Valor formateado + (Porcentaje%)
                     df_counts['label'] = df_counts[feat_y].apply(
                         lambda x: f"{x:,.0f}<br>({(x/total_sum)*100:.1f}%)" if total_sum != 0 else "0"
                     )
 
                     fig = px.bar(df_counts, x=feat_x, y=feat_y, text='label', template="plotly_dark")
+                    
+                    # AJUSTE DEL EJE Y: Aumentamos un 20% el rango superior para que las etiquetas no se corten
+                    max_y = df_counts[feat_y].max()
+                    fig.update_yaxes(range=[0, max_y * 1.2]) 
                     fig.update_traces(textposition='outside')
+                    
                     exp = """
                     **¿Cómo interpretar las Barras?**
-                    * **Total y Porcentaje:** El número arriba indica el valor exacto, mientras que el % muestra el peso de esa categoría sobre el total.
-                    * **Comparación:** Ideal para identificar rápidamente los líderes y los rezagados en tus datos.
+                    * **Total y Porcentaje:** El número arriba indica el valor exacto, mientras que el % muestra el peso de cada barra sobre el total.
+                    * **Comparación:** Es la mejor herramienta para ver diferencias de magnitud entre categorías.
                     """
 
                 elif chart_type == "Dispersión":
                     fig = px.scatter(df, x=feat_x, y=feat_y, template="plotly_dark")
-                    exp = """
-                    **¿Cómo interpretar la Dispersión?**
-                    * **Relación:** Si los puntos suben hacia la derecha, hay una relación positiva.
-                    * **Outliers:** Busca puntos aislados; suelen ser anomalías que merecen investigación.
-                    """
+                    exp = "**Interpretación:** Busca patrones de correlación. Si los puntos forman una línea ascendente, las variables crecen juntas."
 
                 elif chart_type == "Líneas":
                     fig = px.line(df, x=feat_x, y=feat_y, template="plotly_dark")
-                    exp = """
-                    **¿Cómo interpretar las Líneas?**
-                    * **Tendencia:** ¿El valor crece, decrece o es estable? 
-                    * **Picos:** Los puntos más altos pueden representar eventos estacionales o éxitos puntuales.
-                    """
+                    exp = "**Interpretación:** Ideal para series temporales. Observa si hay una tendencia clara al alza o a la baja."
 
                 elif chart_type == "Boxplot":
                     fig = px.box(df, x=feat_x, y=feat_y, template="plotly_dark")
-                    exp = """
-                    **¿Cómo interpretar el Boxplot?**
-                    * **Mediana:** La línea dentro de la caja divide tus datos al 50%.
-                    * **Dispersión:** Una caja larga indica que los datos están muy repartidos; una corta indica consistencia.
-                    """
+                    exp = "**Interpretación:** La línea central es la mediana. Los puntos fuera de los bigotes son valores atípicos (outliers)."
 
                 elif chart_type == "Violín":
                     fig = px.violin(df, x=feat_x, y=feat_y, box=True, points="all", template="plotly_dark")
-                    exp = """
-                    **¿Cómo interpretar el Violín?**
-                    * **Densidad:** El ancho del violín muestra dónde se concentran la mayoría de los registros.
-                    * **Distribución:** Permite ver si hay múltiples "picos" de concentración en una misma categoría.
-                    """
+                    exp = "**Interpretación:** El ancho indica dónde hay más datos. Es un híbrido entre un Boxplot y un Histograma."
 
                 elif chart_type == "Histograma":
-                    fig = px.histogram(df, x=feat_y, template="plotly_dark")
-                    exp = """
-                    **¿Cómo interpretar el Histograma?**
-                    * **Frecuencia:** Muestra cuántas veces se repiten los valores en ciertos rangos.
-                    * **Sesgo:** Si la "cola" es muy larga a la derecha, tienes pocos valores pero muy altos.
-                    """
+                    fig = px.histogram(df, x=feat_y, template="plotly_dark", text_auto=True)
+                    # Ajuste de eje Y para histogramas con etiquetas automáticas
+                    fig.update_layout(bargap=0.1)
+                    fig.update_traces(textposition='outside')
+                    exp = "**Interpretación:** Muestra la frecuencia de los datos. Ayuda a identificar si la mayoría de los valores son bajos, medios o altos."
 
                 else: # Histograma + Densidad
                     fig = px.histogram(df, x=feat_y, marginal="rug", histnorm='probability density', template="plotly_dark")
-                    exp = """
-                    **¿Cómo interpretar Histograma + Densidad?**
-                    * **Probabilidad:** La curva suavizada ayuda a ver la "forma" real de los datos sin el ruido de las barras.
-                    * **Rug (Marcas):** Cada rayita en la base es un dato real; útil para ver vacíos de información.
-                    """
+                    exp = "**Interpretación:** La curva suavizada muestra la 'silueta' de tus datos, facilitando ver la probabilidad de ocurrencia."
 
-                # Renderizado
+                # Renderizado del gráfico
                 st.plotly_chart(fig, use_container_width=True)
                 st.info(exp)
 
