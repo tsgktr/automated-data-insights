@@ -8,7 +8,7 @@ from scipy import stats  # Requiere 'scipy' en requirements.txt
 st.set_page_config(page_title="Automated Data Insights Pro", layout="wide")
 
 st.title("📊 Automated Data Insights")
-st.markdown("Analítica con Segmentación Dinámica y Orden Cronológico Abreviado.")
+st.markdown("Analítica con Gestión de Tipos y Segmentación Temporal.")
 
 uploaded_file = st.file_uploader("Elige un fichero (CSV o Excel)", type=['csv', 'xlsx'])
 
@@ -20,11 +20,46 @@ if uploaded_file is not None:
         else:
             df = pd.read_excel(uploaded_file)
         
-        # 2. DETECCIÓN Y CONVERSIÓN DE FECHAS
+        st.success("Archivo cargado. Revisa los tipos de datos abajo si es necesario.")
+
+        # --- NUEVA SECCIÓN: GESTIÓN DE TIPOS DE DATOS ---
+        with st.expander("🛠️ Configuración de Tipos de Variables"):
+            st.markdown("Si una columna no aparece en los análisis, cámbiale el tipo aquí.")
+            cols = df.columns.tolist()
+            
+            # Creamos columnas en Streamlit para que el editor de tipos sea compacto
+            type_col1, type_col2 = st.columns(2)
+            
+            new_types = {}
+            for i, col in enumerate(cols):
+                target_container = type_col1 if i % 2 == 0 else type_col2
+                current_type = str(df[col].dtype)
+                
+                # Selector de tipo para cada columna
+                options = ["Mantener actual", "Numérico (Entero/Flotante)", "Texto / Categoría", "Fecha"]
+                selection = target_container.selectbox(f"Columna: **{col}** (Actual: {current_type})", options, key=f"type_{col}")
+                
+                if selection == "Numérico (Entero/Flotante)":
+                    try:
+                        df[col] = pd.to_numeric(df[col], errors='coerce')
+                        st.caption(f"✅ {col} convertido a Numérico")
+                    except:
+                        st.error(f"Error al convertir {col}")
+                elif selection == "Texto / Categoría":
+                    df[col] = df[col].astype(str)
+                elif selection == "Fecha":
+                    try:
+                        df[col] = pd.to_datetime(df[col], errors='coerce')
+                        st.caption(f"✅ {col} convertido a Fecha")
+                    except:
+                        st.error(f"Error al convertir {col}")
+
+        # 2. DETECCIÓN AUTOMÁTICA DE FECHAS (Para las que no se cambiaron manualmente)
         for col in df.columns:
             if df[col].dtype == 'object':
                 try:
-                    df[col] = pd.to_datetime(df[col])
+                    # Intento silencioso de conversión a fecha
+                    df[col] = pd.to_datetime(df[col], errors='ignore')
                 except:
                     continue
 
@@ -35,12 +70,8 @@ if uploaded_file is not None:
             df['Año'] = df[main_date].dt.year
             df['Mes_Num'] = df[main_date].dt.month
             df['Mes'] = df[main_date].dt.strftime('%b')
-            
-            # ORDENACIÓN DE DÍAS DE LA SEMANA
-            # %a da el nombre abreviado (Mon, Tue...) y %w el número (0=Sunday, 1=Monday...)
-            df['Día_Num'] = df[main_date].dt.dayofweek # Monday=0, Sunday=6
+            df['Día_Num'] = df[main_date].dt.dayofweek 
             df['Día Semana'] = df[main_date].dt.strftime('%a')
-            
             df['Trimestre'] = df[main_date].dt.quarter.apply(lambda x: f"T{x}")
 
         # --- SECCIÓN 1: VISTA PREVIA ---
@@ -75,7 +106,6 @@ if uploaded_file is not None:
                     desc_df = desc[['mean', 'std', 'Varianza', 'min', 'max', '25%', '50%', '75%', 'count', 'Suma Total']]
                     desc_df.columns = ['Media', 'Desv. Estándar', 'Varianza', 'Mínimo', 'Máximo', '25% (Q1)', '50% (Mediana)', '75% (Q3)', 'Registros', 'Suma Total']
                 else:
-                    # Lógica de ordenamiento para la segmentación
                     if segment_by == 'Mes':
                         desc_grouped = df.groupby(['Mes_Num', 'Mes'])[selected_vars].agg(['mean', 'std', 'var', 'min', 'max', 'median', 'count', 'sum']).sort_index(level='Mes_Num')
                     elif segment_by == 'Día Semana':
@@ -108,7 +138,6 @@ if uploaded_file is not None:
                 chart_type = st.radio("Gráfico", ["Barras", "Líneas", "Boxplot", "Violín", "Histograma"])
             
             with col_v2:
-                # Ordenar dataframe para el gráfico
                 if feat_x == 'Mes':
                     df_plot = df.sort_values('Mes_Num')
                 elif feat_x == 'Día Semana':
@@ -158,10 +187,9 @@ if uploaded_file is not None:
                     else:
                         st.warning("⚠️ Diferencia NO Significativa")
         else:
-            st.warning("No se han encontrado columnas binarias ")
+            st.info("No se han encontrado suficientes columnas binarias y numéricas para el T-Test.")
             
     except Exception as e:
         st.error(f"Error: {e}")
 else:
     st.info("👋 Sube un archivo para comenzar.")
-
