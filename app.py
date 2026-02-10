@@ -63,44 +63,44 @@ if uploaded_file is not None:
                 segment_by = st.selectbox("Segmentar por:", potential_segments)
 
             if selected_vars:
-                # Cálculo de descriptivos
                 if segment_by == "Sin Segmentar":
+                    # --- CORRECCIÓN DE COLUMNAS (Mapeo 10 a 10) ---
                     desc_df = df[selected_vars].describe().T
-                    desc_df['Suma Total'] = df[selected_vars].sum()
                     desc_df['Varianza'] = df[selected_vars].var()
-                    desc_df = desc_df[['mean', 'std', 'min', 'max', '25%', '50%', '75%', 'count', 'Suma Total']]
-                    desc_df.columns = ['Media', 'Desv. Est.', 'Varianza', 'Mín', 'Máx', '25%', 'Mediana', '75%', 'N', 'Suma']
-                    st.dataframe(desc_df.style.format(precision=2))
+                    desc_df['Suma Total'] = df[selected_vars].sum()
+                    
+                    # Reordenamos explícitamente para que coincidan con los nombres
+                    desc_df = desc_df[['count', 'mean', 'std', 'var', 'min', '25%', '50%', '75%', 'max', 'Suma Total']]
+                    desc_df.columns = [
+                        'Registros (N)', 'Media', 'Desv. Estándar', 'Varianza', 
+                        'Mínimo', '25% (Bajos)', 'Mediana (Centro)', '75% (Altos)', 
+                        'Máximo', 'Suma Total'
+                    ]
+                    st.dataframe(desc_df.style.format(precision=2, thousands=".", decimal=","))
                     
                     # --- INSIGHTS AUTOMÁTICOS ---
                     st.markdown("### 💡 Diagnóstico del Analista Virtual")
                     for var in selected_vars:
-                        m = df[var].mean()
-                        med = df[var].median()
-                        std = df[var].std()
-                        q3 = df[var].quantile(0.75)
-                        mx = df[var].max()
+                        m, med, std, q3, mx = df[var].mean(), df[var].median(), df[var].std(), df[var].quantile(0.75), df[var].max()
                         
                         with st.container():
                             st.write(f"**Análisis de {var}:**")
-                            # Lógica de sesgo
-                            if abs(m - med) / med > 0.1:
-                                st.write(f"⚠️ El promedio ({m:.2f}) es muy distinto a la mediana ({med:.2f}). Tienes valores extremos (muy altos o muy bajos) que están distorsionando la realidad.")
+                            # Sesgo
+                            if abs(m - med) / (med if med != 0 else 1) > 0.15:
+                                st.write(f"⚠️ **Sesgo Detectado:** El promedio ({m:,.2f}) es muy distinto a la mediana ({med:,.2f}). Tienes valores extremos inflando o desinflando el resultado.")
                             else:
-                                st.write(f"✅ Los datos son bastante equilibrados; el promedio es una buena representación del grupo.")
-                            
-                            # Lógica de dispersión
-                            if std > m:
-                                st.write(f"🚩 **Alerta de Inestabilidad:** La variación es mayor que el promedio. Esto indica un comportamiento muy caótico o impredecible.")
-                            
-                            # Lógica de Pareto/Concentración
-                            st.write(f"ℹ️ El 75% de tus datos son menores a {q3:.2f}, pero el valor máximo llega hasta {mx:.2f}. Esto sugiere que hay un grupo pequeño con valores excepcionalmente altos.")
+                                st.write(f"✅ **Equilibrio:** El promedio es una representación fiel de la mayoría de tus datos.")
+                            # Dispersión
+                            if std > abs(m):
+                                st.write(f"🚩 **Inestabilidad:** La variación (Desv. Estándar) es altísima respecto al promedio. Tus datos son impredecibles.")
+                            # Concentración
+                            st.write(f"ℹ️ El 75% de tus casos están por debajo de {q3:,.2f}. Si el máximo es {mx:,.2f}, ese tramo final concentra mucha diferencia.")
 
                 else:
-                    # Tabla segmentada
+                    # Tabla segmentada simplificada
                     desc_grouped = df.groupby(segment_by)[selected_vars].agg(['mean', 'std', 'median', 'count', 'sum'])
                     desc_grouped.columns = ['_'.join(col).strip() for col in desc_grouped.columns.values]
-                    st.dataframe(desc_grouped.reset_index().style.format(precision=2))
+                    st.dataframe(desc_grouped.reset_index().style.format(precision=2, thousands=".", decimal=","))
 
         # --- GUÍA EDUCATIVA ---
         with st.expander("🎓 CURSO RÁPIDO: ¿Cómo entender estos números? (Nivel 0)"):
@@ -108,17 +108,16 @@ if uploaded_file is not None:
             with col_a:
                 st.markdown("""
                 **1. ¿Dónde está el centro?**
-                * **Media (Promedio):** Es el reparto igualitario. 
-                * **Mediana (50%):** Es el valor "de en medio". Si la media es mucho más alta que la mediana, ¡Cuidado! Tienes unos pocos valores gigantes inflando el resultado.
+                * **Media (Promedio):** Reparto igualitario. 
+                * **Mediana (Centro Real):** El valor que separa al 50% de la gente. Si la media es mucho más alta, es porque tienes "pocos casos muy ricos/altos" moviendo el promedio.
                 """)
-                
+                [Image of mean median mode relationship in skewed distributions]
             with col_b:
                 st.markdown("""
                 **2. ¿Qué tan estable es todo?**
-                * **Desv. Estándar:** Es el margen de error. Si es pequeña, los datos son parecidos. Si es gigante, hay mucha desigualdad.
-                * **Máximo y Mínimo:** Los límites de tu universo de datos.
+                * **Desv. Estándar:** Es el margen de error. Si es pequeña, tus datos son constantes. Si es grande, hay mucha desigualdad o caos.
                 """)
-                
+                [Image of a box plot with labeled quartiles Q1 Median and Q3]
 
         # --- SECCIÓN 3: VISUALIZACIÓN ---
         st.divider()
@@ -126,25 +125,29 @@ if uploaded_file is not None:
         if numeric_cols:
             c_v1, c_v2 = st.columns([1, 3])
             with c_v1:
-                feat_x = st.selectbox("Eje X (Categoría)", potential_segments[1:] if len(potential_segments)>1 else df.columns)
-                feat_y = st.selectbox("Eje Y (Métrica)", numeric_cols)
+                feat_x = st.selectbox("Segmentar gráfico por:", potential_segments[1:] if len(potential_segments)>1 else df.columns)
+                feat_y = st.selectbox("Métrica a medir:", numeric_cols)
                 chart_type = st.radio("Gráfico:", ["Barras", "Líneas", "Boxplot", "Violín", "Histograma"])
             
             with c_v2:
-                df_plot = df.sort_values('Mes_Num') if 'Mes_Num' in df.columns else df
+                # Lógica de ordenación para el gráfico
+                if feat_x == 'Mes': df_plot = df.sort_values('Mes_Num')
+                elif feat_x == 'Día Semana': df_plot = df.sort_values('Día_Num')
+                else: df_plot = df
+                
                 if chart_type == "Barras":
-                    fig = px.bar(df_plot.groupby(feat_x, sort=False)[feat_y].sum().reset_index(), x=feat_x, y=feat_y, template="plotly_dark", title=f"Total de {feat_y} por {feat_x}")
+                    fig = px.bar(df_plot.groupby(feat_x, sort=False)[feat_y].sum().reset_index(), x=feat_x, y=feat_y, template="plotly_dark", title=f"Suma de {feat_y}")
                 elif chart_type == "Líneas":
-                    fig = px.line(df_plot.groupby(feat_x, sort=False)[feat_y].mean().reset_index(), x=feat_x, y=feat_y, template="plotly_dark", markers=True, title=f"Evolución promedio de {feat_y}")
+                    fig = px.line(df_plot.groupby(feat_x, sort=False)[feat_y].mean().reset_index(), x=feat_x, y=feat_y, template="plotly_dark", markers=True, title=f"Promedio de {feat_y}")
                 elif chart_type == "Boxplot":
                     fig = px.box(df_plot, x=feat_x, y=feat_y, template="plotly_dark")
                 elif chart_type == "Violín":
                     fig = px.violin(df_plot, x=feat_x, y=feat_y, box=True, points="all", template="plotly_dark")
                 else:
-                    fig = px.histogram(df_plot, x=feat_y, template="plotly_dark", marginal="box")
+                    fig = px.histogram(df_plot, x=feat_y, template="plotly_dark", marginal="box", title=f"Distribución de {feat_y}")
+                    [Image of a histogram with a rug plot at the bottom]
                 
                 st.plotly_chart(fig, use_container_width=True)
-                
 
         # --- SECCIÓN 4: TEST DE HIPÓTESIS ---
         st.divider()
@@ -152,23 +155,17 @@ if uploaded_file is not None:
         binary_cols = [c for c in df.columns if df[c].nunique() == 2]
         if binary_cols and numeric_cols:
             ch1, ch2 = st.columns(2)
-            with ch1: t_num = st.selectbox("Métrica:", numeric_cols, key="t_n")
-            with ch2: g_col = st.selectbox("Comparar grupos de:", binary_cols, key="t_c")
+            with ch1: t_num = st.selectbox("Métrica a comparar:", numeric_cols, key="tn")
+            with ch2: g_col = st.selectbox("Comparar grupos de:", binary_cols, key="tc")
             
-            labels = df[g_col].unique()
-            g1 = df[df[g_col] == labels[0]][t_num].dropna()
-            g2 = df[df[g_col] == labels[1]][t_num].dropna()
+            lbls = df[g_col].unique()
+            g1 = df[df[g_col] == lbls[0]][t_num].dropna()
+            g2 = df[df[g_col] == lbls[1]][t_num].dropna()
             
             if len(g1) > 1 and len(g2) > 1:
                 t_stat, p_val = stats.ttest_ind(g1, g2)
                 st.metric("P-valor (Probabilidad de error)", f"{p_val:.4f}")
                 if p_val < 0.05:
-                    st.success(f"✅ Confirmado: Hay una diferencia REAL entre {labels[0]} y {labels[1]}.")
+                    st.success(f"✅ **Diferencia Real:** Los grupos '{lbls[0]}' y '{lbls[1]}' NO son iguales estadísticamente.")
                 else:
-                    st.warning(f"⚠️ Sin pruebas: La diferencia entre {labels[0]} y {labels[1]} puede ser casualidad.")
-                
-
-    except Exception as e:
-        st.error(f"Hubo un problema: {e}")
-else:
-    st.info("👋 Sube un archivo para empezar tu consultoría de datos.")
+                    st.warning(f"⚠️
