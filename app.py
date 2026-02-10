@@ -64,13 +64,11 @@ if uploaded_file is not None:
 
             if selected_vars:
                 if segment_by == "Sin Segmentar":
-                    # --- CORRECCIÓN DE COLUMNAS (Mapeo 10 a 10) ---
                     desc_df = df[selected_vars].describe().T
                     desc_df['Varianza'] = df[selected_vars].var()
                     desc_df['Suma Total'] = df[selected_vars].sum()
                     
-                    # Reordenamos explícitamente para que coincidan con los nombres
-                    desc_df = desc_df[['count', 'mean', 'std', 'var', 'min', '25%', '50%', '75%', 'max', 'Suma Total']]
+                    desc_df = desc_df[['count', 'mean', 'std', 'Varianza', 'min', '25%', '50%', '75%', 'max', 'Suma Total']]
                     desc_df.columns = [
                         'Registros (N)', 'Media', 'Desv. Estándar', 'Varianza', 
                         'Mínimo', '25% (Bajos)', 'Mediana (Centro)', '75% (Altos)', 
@@ -78,26 +76,21 @@ if uploaded_file is not None:
                     ]
                     st.dataframe(desc_df.style.format(precision=2, thousands=".", decimal=","))
                     
-                    # --- INSIGHTS AUTOMÁTICOS ---
                     st.markdown("### 💡 Diagnóstico del Analista Virtual")
                     for var in selected_vars:
                         m, med, std, q3, mx = df[var].mean(), df[var].median(), df[var].std(), df[var].quantile(0.75), df[var].max()
                         
                         with st.container():
                             st.write(f"**Análisis de {var}:**")
-                            # Sesgo
                             if abs(m - med) / (med if med != 0 else 1) > 0.15:
-                                st.write(f"⚠️ **Sesgo Detectado:** El promedio ({m:,.2f}) es muy distinto a la mediana ({med:,.2f}). Tienes valores extremos inflando o desinflando el resultado.")
+                                st.write(f"⚠️ **Sesgo Detectado:** El promedio ({m:,.2f}) es muy distinto a la mediana ({med:,.2f}). Tienes valores extremos distorsionando el resultado.")
                             else:
-                                st.write(f"✅ **Equilibrio:** El promedio es una representación fiel de la mayoría de tus datos.")
-                            # Dispersión
+                                st.write(f"✅ **Equilibrio:** El promedio es una representación fiel de tus datos.")
                             if std > abs(m):
-                                st.write(f"🚩 **Inestabilidad:** La variación (Desv. Estándar) es altísima respecto al promedio. Tus datos son impredecibles.")
-                            # Concentración
-                            st.write(f"ℹ️ El 75% de tus casos están por debajo de {q3:,.2f}. Si el máximo es {mx:,.2f}, ese tramo final concentra mucha diferencia.")
+                                st.write(f"🚩 **Inestabilidad:** La variación es altísima respecto al promedio. Tus datos son impredecibles.")
+                            st.write(f"ℹ️ El 75% de tus casos están por debajo de {q3:,.2f}. Si el máximo es {mx:,.2f}, el tramo final concentra mucha diferencia.")
 
                 else:
-                    # Tabla segmentada simplificada
                     desc_grouped = df.groupby(segment_by)[selected_vars].agg(['mean', 'std', 'median', 'count', 'sum'])
                     desc_grouped.columns = ['_'.join(col).strip() for col in desc_grouped.columns.values]
                     st.dataframe(desc_grouped.reset_index().style.format(precision=2, thousands=".", decimal=","))
@@ -109,15 +102,15 @@ if uploaded_file is not None:
                 st.markdown("""
                 **1. ¿Dónde está el centro?**
                 * **Media (Promedio):** Reparto igualitario. 
-                * **Mediana (Centro Real):** El valor que separa al 50% de la gente. Si la media es mucho más alta, es porque tienes "pocos casos muy ricos/altos" moviendo el promedio.
+                * **Mediana (Centro Real):** El valor que separa al 50% de los datos. 
                 """)
-                [Image of mean median mode relationship in skewed distributions]
+                st.write("")
             with col_b:
                 st.markdown("""
                 **2. ¿Qué tan estable es todo?**
-                * **Desv. Estándar:** Es el margen de error. Si es pequeña, tus datos son constantes. Si es grande, hay mucha desigualdad o caos.
+                * **Desv. Estándar:** Es el margen de error. Si es pequeña, tus datos son constantes. 
                 """)
-                [Image of a box plot with labeled quartiles Q1 Median and Q3]
+                st.write("")
 
         # --- SECCIÓN 3: VISUALIZACIÓN ---
         st.divider()
@@ -130,7 +123,6 @@ if uploaded_file is not None:
                 chart_type = st.radio("Gráfico:", ["Barras", "Líneas", "Boxplot", "Violín", "Histograma"])
             
             with c_v2:
-                # Lógica de ordenación para el gráfico
                 if feat_x == 'Mes': df_plot = df.sort_values('Mes_Num')
                 elif feat_x == 'Día Semana': df_plot = df.sort_values('Día_Num')
                 else: df_plot = df
@@ -145,7 +137,7 @@ if uploaded_file is not None:
                     fig = px.violin(df_plot, x=feat_x, y=feat_y, box=True, points="all", template="plotly_dark")
                 else:
                     fig = px.histogram(df_plot, x=feat_y, template="plotly_dark", marginal="box", title=f"Distribución de {feat_y}")
-                    [Image of a histogram with a rug plot at the bottom]
+                    st.write("")
                 
                 st.plotly_chart(fig, use_container_width=True)
 
@@ -168,4 +160,10 @@ if uploaded_file is not None:
                 if p_val < 0.05:
                     st.success(f"✅ **Diferencia Real:** Los grupos '{lbls[0]}' y '{lbls[1]}' NO son iguales estadísticamente.")
                 else:
-                    st.warning(f"⚠️
+                    st.warning(f"⚠️ **Sin pruebas:** La diferencia podría ser casualidad.")
+                st.write("")
+
+    except Exception as e:
+        st.error(f"Hubo un problema: {e}")
+else:
+    st.info("👋 Sube un archivo para empezar.")
