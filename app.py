@@ -265,27 +265,30 @@ if uploaded_file is not None:
                 st.info(f"💡 El grupo **{lbls[0]}** tiene una media {abs(diff):.1f}% {'mayor' if diff > 0 else 'menor'} que el grupo **{lbls[1]}**.")
 
             # --- SECCIÓN 4: TEST DE HIPÓTESIS (T-TEST) ---
-            # ... (mantener lógica de selección de columnas anteriores) ...
+            # --- SECCIÓN 4: TEST DE HIPÓTESIS (T-TEST) ---
+            # ... (Mantener lógica de selección de g1 y g2) ...
             
             if len(g1) > 1 and len(g2) > 1:
-                st.markdown(f"**Comparativa de grupos: {lbls[0]} vs {lbls[1]}**")
+                st.markdown(f"**Comparativa Visual y Estadística: {lbls[0]} vs {lbls[1]}**")
                 
+                # Gráfico Boxplot para T-Test
+                fig_t = px.box(df[df[g_col].isin(lbls)], x=g_col, y=t_num, color=g_col,
+                               points="all", template="plotly_dark", title=f"{t_num} por {g_col}")
+                st.plotly_chart(fig_t, use_container_width=True)
+    
                 def get_stats(data):
                     return {
-                        "Registros": len(data),
                         "Media": data.mean(),
                         "Desv. Estándar": data.std(),
                         "25% (P25)": data.quantile(0.25),
                         "50% (Mediana)": data.median(),
-                        "75% (P75)": data.quantile(0.75)  # <--- Cambiado a 0.75
+                        "75% (P75)": data.quantile(0.75)
                     }
     
-                stats_df = pd.DataFrame({
-                    lbls[0]: get_stats(g1),
-                    lbls[1]: get_stats(g2)
-                }).T
+                stats_df = pd.DataFrame({lbls[0]: get_stats(g1), lbls[1]: get_stats(g2)}).T
                 st.dataframe(stats_df.style.format(precision=2, thousands=".", decimal=","))
-                # ... (resto del código del T-Test) ...
+                
+            # ... (Resto del P-valor) ...
 
             else:
                 st.error("No hay suficientes datos en uno de los grupos para realizar el test.")
@@ -356,24 +359,30 @@ if uploaded_file is not None:
             else:
                 st.info("Se necesitan al menos 3 grupos con datos para ejecutar ANOVA.")
 
-            # --- SECCIÓN 5: COMPARACIÓN MÚLTIPLE (ANOVA) ---
-            # ... (mantener lógica de selección de columnas anteriores) ...
+    # --- SECCIÓN 5: COMPARACIÓN MÚLTIPLE (ANOVA) ---
+            # ... (Mantener lógica de selección de groups_data) ...
             
             if len(groups_data) > 2:
+                st.markdown(f"**Análisis de Dispersión por {group_var}**")
+                
+                # Gráfico Boxplot para ANOVA
+                fig_anova = px.box(df, x=group_var, y=target_var, color=group_var,
+                                   template="plotly_dark", notched=True,
+                                   title=f"Distribución de {target_var} por {group_var}")
+                st.plotly_chart(fig_anova, use_container_width=True)
+    
                 # Tabla de estadísticos con P75
                 anova_stats = df.groupby(group_var)[target_var].agg([
                     'count', 'mean', 'std', 
                     lambda x: x.quantile(0.25), 
                     'median', 
-                    lambda x: x.quantile(0.75) # <--- Cambiado a 0.75
+                    lambda x: x.quantile(0.75)
                 ]).reset_index()
                 
                 anova_stats.columns = [group_var, 'Registros', 'Media', 'Desv. Estándar', '25%', '50%', '75%']
                 st.dataframe(anova_stats.style.format(precision=2, thousands=".", decimal=","))
                 
-                # El Boxplot ayuda a visualizar estos cuartiles (25, 50 y 75)
-                
-                # ... (resto del código del ANOVA y Boxplot) ...
+                # ... (Resto del P-valor ANOVA) ...
         else:
             st.warning("No se encontraron columnas con el número adecuado de categorías (entre 3 y 15) para realizar este análisis.")
 
@@ -382,6 +391,7 @@ if uploaded_file is not None:
         st.error(f"Hubo un problema: {e}")
 else:
     st.info("👋 Sube un archivo para empezar.")
+
 
 
 
