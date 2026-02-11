@@ -20,6 +20,10 @@ if uploaded_file is not None:
         else:
             df = pd.read_excel(uploaded_file)
         
+        # --- NUEVA SECCIÓN: VISTA PREVIA ---
+        with st.expander("👀 Vista previa de los datos (Primeras 5 filas)"):
+            st.dataframe(df.head())
+        
         # --- GESTIÓN DE TIPOS DE DATOS ---
         with st.expander("🛠️ PASO 1: Configurar tipos de datos (Opcional)"):
             st.info("Asegúrate de que los números sean 'Numérico' y las fechas 'Fecha'.")
