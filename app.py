@@ -205,31 +205,74 @@ if uploaded_file is not None:
                 
                 st.plotly_chart(fig, use_container_width=True)
 
-        # --- SECCIÓN 4: TEST DE HIPÓTESIS ---
+        # --- SECCIÓN 4: TEST DE HIPÓTESIS (VALIDACIÓN CIENTÍFICA) ---
         st.divider()
         st.subheader("🧪 PASO 4: Validación Científica (T-Test)")
+        
+        # Filtramos columnas con exactamente 2 valores únicos para comparar grupos
         binary_cols = [c for c in df.columns if df[c].nunique() == 2]
+        
         if binary_cols and numeric_cols:
             ch1, ch2 = st.columns(2)
-            with ch1: t_num = st.selectbox("Métrica a comparar:", numeric_cols, key="tn")
-            with ch2: g_col = st.selectbox("Comparar grupos de:", binary_cols, key="tc")
+            with ch1: 
+                t_num = st.selectbox("Métrica numérica a comparar:", numeric_cols, key="tn")
+            with ch2: 
+                g_col = st.selectbox("Dividir grupos por la columna:", binary_cols, key="tc")
             
+            # Separación de datos
             lbls = df[g_col].unique()
             g1 = df[df[g_col] == lbls[0]][t_num].dropna()
             g2 = df[df[g_col] == lbls[1]][t_num].dropna()
             
             if len(g1) > 1 and len(g2) > 1:
+                # --- TABLA DE ESTADÍSTICOS SEGMENTADOS ---
+                st.markdown(f"**Comparativa de grupos: {lbls[0]} vs {lbls[1]}**")
+                
+                def get_stats(data):
+                    return {
+                        "Registros": len(data),
+                        "Media": data.mean(),
+                        "Desv. Estándar": data.std(),
+                        "25% (P25)": data.quantile(0.25),
+                        "50% (Mediana)": data.median(),
+                        "85% (P85)": data.quantile(0.85)
+                    }
+
+                stats_df = pd.DataFrame({
+                    lbls[0]: get_stats(g1),
+                    lbls[1]: get_stats(g2)
+                }).T
+                
+                st.dataframe(stats_df.style.format(precision=2, thousands=".", decimal=","))
+
+                # --- CÁLCULO DE T-TEST ---
                 t_stat, p_val = stats.ttest_ind(g1, g2)
-                st.metric("P-valor (Probabilidad de error)", f"{p_val:.4f}")
-                if p_val < 0.05:
-                    st.success(f"✅ **Diferencia Real:** Los grupos '{lbls[0]}' y '{lbls[1]}' NO son iguales estadísticamente.")
-                else:
-                    st.warning(f"⚠️ **Sin pruebas:** La diferencia podría ser casualidad.")
-                st.write("")
+                
+                st.write("---")
+                col_m1, col_m2 = st.columns(2)
+                
+                with col_m1:
+                    st.metric("P-valor (Confianza)", f"{p_val:.4f}")
+                
+                with col_m2:
+                    if p_val < 0.05:
+                        st.success("✅ **Diferencia Significativa:** Es muy poco probable que la diferencia sea por azar.")
+                    else:
+                        st.warning("⚠️ **Sin Evidencia:** No hay base estadística suficiente para decir que son distintos.")
+                
+                # Insight adicional sobre la diferencia de medias
+                diff = ((g1.mean() - g2.mean()) / g2.mean()) * 100
+                st.info(f"💡 El grupo **{lbls[0]}** tiene una media {abs(diff):.1f}% {'mayor' if diff > 0 else 'menor'} que el grupo **{lbls[1]}**.")
+
+            else:
+                st.error("No hay suficientes datos en uno de los grupos para realizar el test.")
+        else:
+            st.warning("Necesitas al menos una columna con solo 2 categorías (ej. Género, Segmento A/B) y una columna numérica para esta validación.")
 
     except Exception as e:
         st.error(f"Hubo un problema: {e}")
 else:
     st.info("👋 Sube un archivo para empezar.")
+
 
 
