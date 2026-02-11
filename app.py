@@ -20,7 +20,7 @@ if uploaded_file is not None:
         else:
             df = pd.read_excel(uploaded_file)
         
-        # --- NUEVA SECCIÓN: VISTA PREVIA ---
+        # --- VISTA PREVIA ---
         with st.expander("👀 Vista previa de los datos (Primeras 5 filas)"):
             st.dataframe(df.head())
         
@@ -40,6 +40,33 @@ if uploaded_file is not None:
                     df[col] = df[col].astype(str)
                 elif selection == "Fecha":
                     df[col] = pd.to_datetime(df[col], errors='coerce')
+
+        # --- NUEVA SECCIÓN: EXPLORACIÓN DE VALORES ÚNICOS ---
+        st.divider()
+        st.subheader("🔍 PASO 1.5: Exploración Detallada de Columnas")
+        
+        col_explorer_data = []
+        for col in df.columns:
+            unique_values = df[col].dropna().unique()
+            n_unique = len(unique_values)
+            
+            if n_unique <= 5:
+                # Si hay 5 o menos, mostramos todos
+                display_values = ", ".join(map(str, sorted(unique_values)))
+                label_tipo = "Todos los valores"
+            else:
+                # Si hay más de 5, tomamos una muestra aleatoria
+                sample_values = random.sample(list(unique_values), 5)
+                display_values = ", ".join(map(str, sample_values)) + "..."
+                label_tipo = "Muestra aleatoria"
+            
+            col_explorer_data.append({
+                "Columna": col,
+                "Valores Únicos": n_unique,
+                label_tipo: display_values
+            })
+        
+        st.table(pd.DataFrame(col_explorer_data))
 
         # 2. PROCESAMIENTO DE FECHAS AUTOMÁTICO
         date_cols = df.select_dtypes(include=['datetime64']).columns.tolist()
