@@ -268,11 +268,75 @@ if uploaded_file is not None:
                 st.error("No hay suficientes datos en uno de los grupos para realizar el test.")
         else:
             st.warning("Necesitas al menos una columna con solo 2 categorías (ej. Género, Segmento A/B) y una columna numérica para esta validación.")
+# --- SECCIÓN 5: COMPARACIÓN DE MÁS DE 2 GRUPOS (ANOVA) ---
+        st.divider()
+        st.subheader("🧪 PASO 5: Comparación Múltiple (ANOVA)")
 
+        with st.expander("📖 ¿Qué es este test y qué buscamos?"):
+            st.markdown("""
+            ### ¿Qué es el test ANOVA?
+            El **ANOVA (Análisis de Varianza)** es una prueba estadística que se utiliza para comparar las medias de **tres o más grupos** al mismo tiempo. 
+            
+            **¿Qué buscamos aquí?**
+            * **Hipótesis Nula (H0):** Todas las medias de los grupos son iguales (las diferencias que ves son pura casualidad).
+            * **Hipótesis Alternativa (H1):** Al menos uno de los grupos tiene una media significativamente distinta a los demás.
+            
+            Es ideal para variables como *Etnia, Departamento, Nivel Educativo o País*, donde queremos saber si esa categoría realmente influye en el resultado numérico.
+            """)
+
+        # Filtramos columnas que tengan más de 2 valores únicos pero menos de 15 (para que sea interpretable)
+        multi_groups = [c for c in df.columns if 2 < df[c].nunique() < 15]
+
+        if multi_groups and numeric_cols:
+            c1, c2 = st.columns(2)
+            with c1:
+                target_var = st.selectbox("Métrica numérica a analizar:", numeric_cols, key="anova_num")
+            with c2:
+                group_var = st.selectbox("Dividir grupos por la columna:", multi_groups, key="anova_cat")
+
+            # 1. Mostrar Estadísticos por Segmento
+            st.markdown(f"**Análisis descriptivo por {group_var}:**")
+            
+            # Calculamos los estadísticos solicitados anteriormente
+            anova_stats = df.groupby(group_var)[target_var].agg([
+                'count', 'mean', 'std', 
+                lambda x: x.quantile(0.25), 
+                'median', 
+                lambda x: x.quantile(0.85)
+            ]).reset_index()
+            
+            anova_stats.columns = [group_var, 'Registros', 'Media', 'Desv. Estándar', '25% (P25)', '50% (Mediana)', '85% (P85)']
+            
+            st.dataframe(anova_stats.style.format(precision=2, thousands=".", decimal=","))
+
+            # 2. Ejecutar ANOVA
+            # Preparamos los datos: una lista de series (una por cada grupo)
+            groups_data = [group[target_var].dropna() for name, group in df.groupby(group_var)]
+            
+            if len(groups_data) > 2:
+                f_stat, p_val_anova = stats.f_oneway(*groups_data)
+                
+                st.write("---")
+                col_res1, col_res2 = st.columns(2)
+                
+                with col_res1:
+                    st.metric("P-valor (ANOVA)", f"{p_val_anova:.4f}")
+                
+                with col_res2:
+                    if p_val_anova < 0.05:
+                        st.success(f"✅ **Diferencias Significativas:** Al menos uno de los grupos en **{group_var}** se comporta de forma distinta a los demás.")
+                        st.info("💡 **Siguiente paso recomendado:** Revisa la tabla de arriba. El grupo con la Media o el P85 más alejado del resto es probablemente el que marca la diferencia.")
+                    else:
+                        st.warning(f"⚠️ **Sin Diferencias Claras:** No hay evidencia estadística de que los grupos de **{group_var}** afecten a la métrica **{target_var}**.")
+            else:
+                st.info("Se necesitan al menos 3 grupos con datos para ejecutar ANOVA.")
+        else:
+            st.warning("No se encontraron columnas con el número adecuado de categorías (entre 3 y 15) para realizar este análisis.")
     except Exception as e:
         st.error(f"Hubo un problema: {e}")
 else:
     st.info("👋 Sube un archivo para empezar.")
+
 
 
 
