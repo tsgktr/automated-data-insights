@@ -206,6 +206,7 @@ if uploaded_file is not None:
                 st.plotly_chart(fig, use_container_width=True)
 
         # --- SECCIÓN 4: TEST DE HIPÓTESIS (VALIDACIÓN CIENTÍFICA) ---
+        # --- SECCIÓN 4: TEST DE HIPÓTESIS (VALIDACIÓN CIENTÍFICA) ---
         st.divider()
         st.subheader("🧪 PASO 4: Validación Científica (T-Test)")
         
@@ -224,28 +225,33 @@ if uploaded_file is not None:
             g1 = df[df[g_col] == lbls[0]][t_num].dropna()
             g2 = df[df[g_col] == lbls[1]][t_num].dropna()
             
-            # --- SECCIÓN 4: TEST DE HIPÓTESIS (T-TEST) ---
-            
             if len(g1) > 1 and len(g2) > 1:
                 st.markdown(f"**Comparativa Visual y Estadística: {lbls[0]} vs {lbls[1]}**")
                 
-                # Gráfico Boxplot para T-Test
-                fig_t = px.box(df[df[g_col].isin(lbls)], x=g_col, y=t_num, color=g_col,
-                               points="all", template="plotly_dark", title=f"{t_num} por {g_col}")
-                st.plotly_chart(fig_t, use_container_width=True)
-    
-                def get_stats(data):
-                    return {
-                        "Media": data.mean(),
-                        "Desv. Estándar": data.std(),
-                        "25% (P25)": data.quantile(0.25),
-                        "50% (Mediana)": data.median(),
-                        "75% (P75)": data.quantile(0.75)
-                    }
-    
-                stats_df = pd.DataFrame({lbls[0]: get_stats(g1), lbls[1]: get_stats(g2)}).T
-                st.dataframe(stats_df.style.format(precision=2, thousands=".", decimal=","))
+                # --- NUEVA MAQUETACIÓN EN COLUMNAS ---
+                col_viz, col_stats = st.columns([2, 1]) # Proporción 2:1
                 
+                with col_viz:
+                    # Gráfico Boxplot para T-Test
+                    fig_t = px.box(df[df[g_col].isin(lbls)], x=g_col, y=t_num, color=g_col,
+                                   points="all", template="plotly_dark", title=f"{t_num} por {g_col}")
+                    fig_t.update_layout(margin=dict(l=20, r=20, t=40, b=20)) # Ajuste de márgenes
+                    st.plotly_chart(fig_t, use_container_width=True)
+        
+                with col_stats:
+                    def get_stats(data):
+                        return {
+                            "Media": data.mean(),
+                            "Desv. Est": data.std(),
+                            "P25": data.quantile(0.25),
+                            "Mediana": data.median(),
+                            "P75": data.quantile(0.75)
+                        }
+        
+                    stats_df = pd.DataFrame({lbls[0]: get_stats(g1), lbls[1]: get_stats(g2)}).T
+                    st.write("Estadísticos Descriptivos:")
+                    st.dataframe(stats_df.style.format(precision=2, thousands=".", decimal=","), use_container_width=True)
+        
                 # --- CÁLCULO DE T-TEST ---
                 t_stat, p_val = stats.ttest_ind(g1, g2)
                 
@@ -264,14 +270,12 @@ if uploaded_file is not None:
                 # Insight adicional sobre la diferencia de medias
                 diff = ((g1.mean() - g2.mean()) / g2.mean()) * 100
                 st.info(f"💡 El grupo **{lbls[0]}** tiene una media {abs(diff):.1f}% {'mayor' if diff > 0 else 'menor'} que el grupo **{lbls[1]}**.")
-
-
+        
             else:
                 st.error("No hay suficientes datos en uno de los grupos para realizar el test.")
         else:
-            st.warning("Necesitas al menos una columna con solo 2 categorías (ej. Género, Segmento A/B) y una columna numérica para esta validación.")
-        
-        
+            st.warning("Necesitas al menos una columna con solo 2 categorías y una numérica para esta validación.")
+                
         # --- SECCIÓN 5: COMPARACIÓN DE MÁS DE 2 GRUPOS (ANOVA) ---
         st.divider()
         st.subheader("🧪 PASO 5: Comparación Múltiple (ANOVA)")
@@ -367,6 +371,7 @@ if uploaded_file is not None:
         st.error(f"Hubo un problema: {e}")
 else:
     st.info("👋 Sube un archivo para empezar.")
+
 
 
 
