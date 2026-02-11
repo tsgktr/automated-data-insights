@@ -264,11 +264,36 @@ if uploaded_file is not None:
                 diff = ((g1.mean() - g2.mean()) / g2.mean()) * 100
                 st.info(f"💡 El grupo **{lbls[0]}** tiene una media {abs(diff):.1f}% {'mayor' if diff > 0 else 'menor'} que el grupo **{lbls[1]}**.")
 
+            # --- SECCIÓN 4: TEST DE HIPÓTESIS (T-TEST) ---
+            # ... (mantener lógica de selección de columnas anteriores) ...
+            
+            if len(g1) > 1 and len(g2) > 1:
+                st.markdown(f"**Comparativa de grupos: {lbls[0]} vs {lbls[1]}**")
+                
+                def get_stats(data):
+                    return {
+                        "Registros": len(data),
+                        "Media": data.mean(),
+                        "Desv. Estándar": data.std(),
+                        "25% (P25)": data.quantile(0.25),
+                        "50% (Mediana)": data.median(),
+                        "75% (P75)": data.quantile(0.75)  # <--- Cambiado a 0.75
+                    }
+    
+                stats_df = pd.DataFrame({
+                    lbls[0]: get_stats(g1),
+                    lbls[1]: get_stats(g2)
+                }).T
+                st.dataframe(stats_df.style.format(precision=2, thousands=".", decimal=","))
+                # ... (resto del código del T-Test) ...
+
             else:
                 st.error("No hay suficientes datos en uno de los grupos para realizar el test.")
         else:
             st.warning("Necesitas al menos una columna con solo 2 categorías (ej. Género, Segmento A/B) y una columna numérica para esta validación.")
-# --- SECCIÓN 5: COMPARACIÓN DE MÁS DE 2 GRUPOS (ANOVA) ---
+        
+        
+        # --- SECCIÓN 5: COMPARACIÓN DE MÁS DE 2 GRUPOS (ANOVA) ---
         st.divider()
         st.subheader("🧪 PASO 5: Comparación Múltiple (ANOVA)")
 
@@ -330,12 +355,34 @@ if uploaded_file is not None:
                         st.warning(f"⚠️ **Sin Diferencias Claras:** No hay evidencia estadística de que los grupos de **{group_var}** afecten a la métrica **{target_var}**.")
             else:
                 st.info("Se necesitan al menos 3 grupos con datos para ejecutar ANOVA.")
+
+            # --- SECCIÓN 5: COMPARACIÓN MÚLTIPLE (ANOVA) ---
+            # ... (mantener lógica de selección de columnas anteriores) ...
+            
+            if len(groups_data) > 2:
+                # Tabla de estadísticos con P75
+                anova_stats = df.groupby(group_var)[target_var].agg([
+                    'count', 'mean', 'std', 
+                    lambda x: x.quantile(0.25), 
+                    'median', 
+                    lambda x: x.quantile(0.75) # <--- Cambiado a 0.75
+                ]).reset_index()
+                
+                anova_stats.columns = [group_var, 'Registros', 'Media', 'Desv. Estándar', '25%', '50%', '75%']
+                st.dataframe(anova_stats.style.format(precision=2, thousands=".", decimal=","))
+                
+                # El Boxplot ayuda a visualizar estos cuartiles (25, 50 y 75)
+                
+                # ... (resto del código del ANOVA y Boxplot) ...
         else:
             st.warning("No se encontraron columnas con el número adecuado de categorías (entre 3 y 15) para realizar este análisis.")
+
+    
     except Exception as e:
         st.error(f"Hubo un problema: {e}")
 else:
     st.info("👋 Sube un archivo para empezar.")
+
 
 
 
