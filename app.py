@@ -302,10 +302,10 @@ if uploaded_file is not None:
                 'count', 'mean', 'std', 
                 lambda x: x.quantile(0.25), 
                 'median', 
-                lambda x: x.quantile(0.85)
+                lambda x: x.quantile(0.75)
             ]).reset_index()
             
-            anova_stats.columns = [group_var, 'Registros', 'Media', 'Desv. Estándar', '25% (P25)', '50% (Mediana)', '85% (P85)']
+            anova_stats.columns = [group_var, 'Registros', 'Media', 'Desv. Estándar', '25% (P25)', '50% (Mediana)', '75% (P75)']
             
             st.dataframe(anova_stats.style.format(precision=2, thousands=".", decimal=","))
 
@@ -336,6 +336,7 @@ if uploaded_file is not None:
         st.error(f"Hubo un problema: {e}")
 else:
     st.info("👋 Sube un archivo para empezar.")
+
 
 
 
