@@ -224,49 +224,7 @@ if uploaded_file is not None:
             g1 = df[df[g_col] == lbls[0]][t_num].dropna()
             g2 = df[df[g_col] == lbls[1]][t_num].dropna()
             
-            if len(g1) > 1 and len(g2) > 1:
-                # --- TABLA DE ESTADÍSTICOS SEGMENTADOS ---
-                st.markdown(f"**Comparativa de grupos: {lbls[0]} vs {lbls[1]}**")
-                
-                def get_stats(data):
-                    return {
-                        "Registros": len(data),
-                        "Media": data.mean(),
-                        "Desv. Estándar": data.std(),
-                        "25% (P25)": data.quantile(0.25),
-                        "50% (Mediana)": data.median(),
-                        "85% (P85)": data.quantile(0.85)
-                    }
-
-                stats_df = pd.DataFrame({
-                    lbls[0]: get_stats(g1),
-                    lbls[1]: get_stats(g2)
-                }).T
-                
-                st.dataframe(stats_df.style.format(precision=2, thousands=".", decimal=","))
-
-                # --- CÁLCULO DE T-TEST ---
-                t_stat, p_val = stats.ttest_ind(g1, g2)
-                
-                st.write("---")
-                col_m1, col_m2 = st.columns(2)
-                
-                with col_m1:
-                    st.metric("P-valor (Confianza)", f"{p_val:.4f}")
-                
-                with col_m2:
-                    if p_val < 0.05:
-                        st.success("✅ **Diferencia Significativa:** Es muy poco probable que la diferencia sea por azar.")
-                    else:
-                        st.warning("⚠️ **Sin Evidencia:** No hay base estadística suficiente para decir que son distintos.")
-                
-                # Insight adicional sobre la diferencia de medias
-                diff = ((g1.mean() - g2.mean()) / g2.mean()) * 100
-                st.info(f"💡 El grupo **{lbls[0]}** tiene una media {abs(diff):.1f}% {'mayor' if diff > 0 else 'menor'} que el grupo **{lbls[1]}**.")
-
             # --- SECCIÓN 4: TEST DE HIPÓTESIS (T-TEST) ---
-            # --- SECCIÓN 4: TEST DE HIPÓTESIS (T-TEST) ---
-            # ... (Mantener lógica de selección de g1 y g2) ...
             
             if len(g1) > 1 and len(g2) > 1:
                 st.markdown(f"**Comparativa Visual y Estadística: {lbls[0]} vs {lbls[1]}**")
@@ -288,7 +246,25 @@ if uploaded_file is not None:
                 stats_df = pd.DataFrame({lbls[0]: get_stats(g1), lbls[1]: get_stats(g2)}).T
                 st.dataframe(stats_df.style.format(precision=2, thousands=".", decimal=","))
                 
-            # ... (Resto del P-valor) ...
+                # --- CÁLCULO DE T-TEST ---
+                t_stat, p_val = stats.ttest_ind(g1, g2)
+                
+                st.write("---")
+                col_m1, col_m2 = st.columns(2)
+                
+                with col_m1:
+                    st.metric("P-valor (Confianza)", f"{p_val:.4f}")
+                
+                with col_m2:
+                    if p_val < 0.05:
+                        st.success("✅ **Diferencia Significativa:** Es muy poco probable que la diferencia sea por azar.")
+                    else:
+                        st.warning("⚠️ **Sin Evidencia:** No hay base estadística suficiente para decir que son distintos.")
+                
+                # Insight adicional sobre la diferencia de medias
+                diff = ((g1.mean() - g2.mean()) / g2.mean()) * 100
+                st.info(f"💡 El grupo **{lbls[0]}** tiene una media {abs(diff):.1f}% {'mayor' if diff > 0 else 'menor'} que el grupo **{lbls[1]}**.")
+
 
             else:
                 st.error("No hay suficientes datos en uno de los grupos para realizar el test.")
@@ -391,6 +367,7 @@ if uploaded_file is not None:
         st.error(f"Hubo un problema: {e}")
 else:
     st.info("👋 Sube un archivo para empezar.")
+
 
 
 
