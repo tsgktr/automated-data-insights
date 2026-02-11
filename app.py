@@ -144,31 +144,65 @@ if uploaded_file is not None:
                 st.write("")
 
         # --- SECCIÓN 3: VISUALIZACIÓN ---
+# --- SECCIÓN 3: VISUALIZACIÓN ---
         st.divider()
         st.subheader("📈 PASO 3: Visualización")
-        if numeric_cols:
+        
+        if not df.empty:
             c_v1, c_v2 = st.columns([1, 3])
+            
             with c_v1:
-                feat_x = st.selectbox("Segmentar gráfico por:", potential_segments[1:] if len(potential_segments)>1 else df.columns)
-                feat_y = st.selectbox("Métrica a medir:", numeric_cols)
-                chart_type = st.radio("Gráfico:", ["Barras", "Líneas", "Boxplot", "Violín", "Histograma"])
+                # Permitimos elegir cualquier columna para el eje X (Categorías o Fechas)
+                feat_x = st.selectbox("Variable Principal (Eje X):", potential_segments if len(potential_segments)>0 else df.columns)
+                
+                # Opciones de gráfico
+                chart_type = st.radio("Tipo de Gráfico:", ["Barras (Frecuencias)", "Líneas (Tendencia)", "Boxplot", "Violín", "Histograma"])
+                
+                # La métrica Y solo es necesaria para ciertos gráficos
+                feat_y = None
+                if chart_type in ["Líneas", "Boxplot", "Violín"]:
+                    feat_y = st.selectbox("Métrica Numérica (Eje Y):", numeric_cols)
             
             with c_v2:
+                # Lógica de ordenación para fechas
                 if feat_x == 'Mes': df_plot = df.sort_values('Mes_Num')
                 elif feat_x == 'Día Semana': df_plot = df.sort_values('Día_Num')
                 else: df_plot = df
-                
-                if chart_type == "Barras":
-                    fig = px.bar(df_plot.groupby(feat_x, sort=False)[feat_y].sum().reset_index(), x=feat_x, y=feat_y, template="plotly_dark", title=f"Suma de {feat_y}")
+
+                if chart_type == "Barras (Frecuencias)":
+                    # Cálculo de Absolutos y Relativos
+                    counts = df_plot[feat_x].value_counts().reset_index()
+                    counts.columns = [feat_x, 'Absoluto']
+                    total = counts['Absoluto'].sum()
+                    counts['Relativo (%)'] = (counts['Absoluto'] / total * 100).round(1)
+                    
+                    # Creación del gráfico con etiquetas
+                    fig = px.bar(counts, x=feat_x, y='Absoluto', 
+                                 text=counts.apply(lambda r: f"{r['Absoluto']}<br>({r['Relativo (%)']}%)", axis=1),
+                                 template="plotly_dark", 
+                                 title=f"Distribución de {feat_x}")
+                    
+                    fig.update_traces(textposition='outside')
+                    # Espacio extra arriba (15% más del máximo) para que no se corten las etiquetas
+                    fig.update_layout(yaxis_range=[0, counts['Absoluto'].max() * 1.15])
+
                 elif chart_type == "Líneas":
-                    fig = px.line(df_plot.groupby(feat_x, sort=False)[feat_y].mean().reset_index(), x=feat_x, y=feat_y, template="plotly_dark", markers=True, title=f"Promedio de {feat_y}")
+                    summary = df_plot.groupby(feat_x, sort=False)[feat_y].mean().reset_index()
+                    fig = px.line(summary, x=feat_x, y=feat_y, template="plotly_dark", markers=True, 
+                                  title=f"Promedio de {feat_y} por {feat_x}")
+
                 elif chart_type == "Boxplot":
-                    fig = px.box(df_plot, x=feat_x, y=feat_y, template="plotly_dark")
+                    fig = px.box(df_plot, x=feat_x, y=feat_y, template="plotly_dark", 
+                                 title=f"Dispersión de {feat_y} por {feat_x}")
+
                 elif chart_type == "Violín":
-                    fig = px.violin(df_plot, x=feat_x, y=feat_y, box=True, points="all", template="plotly_dark")
-                else:
-                    fig = px.histogram(df_plot, x=feat_y, template="plotly_dark", marginal="box", title=f"Distribución de {feat_y}")
-                    st.write("")
+                    fig = px.violin(df_plot, x=feat_x, y=feat_y, box=True, points="all", 
+                                    template="plotly_dark", title=f"Densidad de {feat_y} por {feat_x}")
+
+                else: # Histograma
+                    target_h = feat_y if feat_y else numeric_cols[0]
+                    fig = px.histogram(df_plot, x=target_h, template="plotly_dark", marginal="box", 
+                                       title=f"Distribución de {target_h}")
                 
                 st.plotly_chart(fig, use_container_width=True)
 
@@ -198,3 +232,4 @@ if uploaded_file is not None:
         st.error(f"Hubo un problema: {e}")
 else:
     st.info("👋 Sube un archivo para empezar.")
+
