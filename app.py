@@ -144,7 +144,6 @@ if uploaded_file is not None:
                 st.write("")
 
         # --- SECCIÓN 3: VISUALIZACIÓN ---
-# --- SECCIÓN 3: VISUALIZACIÓN ---
         st.divider()
         st.subheader("📈 PASO 3: Visualización")
         
@@ -232,4 +231,5 @@ if uploaded_file is not None:
         st.error(f"Hubo un problema: {e}")
 else:
     st.info("👋 Sube un archivo para empezar.")
+
 
